@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog/log"
+	"net/http"
 	"os"
+	"os/signal"
+	"sync"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
@@ -26,12 +30,14 @@ func main() {
 		logger.Fatal().Err(err).Msg("")
 	}
 
-	for _, s := range *schemas {
-		ReadResource(&s)
-	}
-}
+	http.Handle("/metrics", promhttp.Handler())
 
-func ReadResource(s *exporter.ResSchema) {
+	go func() {
+		if err = http.ListenAndServe(":8080", nil); err != nil {
+			logger.Fatal().Err(err).Msg("")
+		}
+	}()
+
 	conf := &mikrotik.Config{
 		Insecure: true,
 		HostURL:  os.Getenv("HOSTURL"),
@@ -41,51 +47,34 @@ func ReadResource(s *exporter.ResSchema) {
 
 	client, err := mikrotik.NewClient(ctx, conf)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("")
+		logger.Fatal().Err(err).Msg("creating mikrotik client")
 	}
 
-	var resource []mikrotik.MikrotikItem
+	signalChan := make(chan os.Signal, 10)
+	signal.Notify(signalChan, os.Interrupt, os.Kill)
 
-	if len(s.ResourceFilter) == 0 {
-		resource, err = mikrotik.Read("/interface", client)
-	} else {
-		var filter []string
-		for k, v := range s.ResourceFilter {
-			filter = append(filter, k+"="+v)
+	wg := sync.WaitGroup{}
+	ctx, cancelFn := context.WithCancel(ctx)
+
+	for _, s := range schemas {
+		wg.Add(1)
+		go func() {
+			rExporter := exporter.NewResourceExporter(s, client)
+			if err := rExporter.ExportMetrics(ctx); err != nil {
+				logger.Err(err).Msg("exporting metrics")
+			}
+			wg.Done()
+		}()
+	}
+
+	for done := false; !done; {
+		select {
+		case <-signalChan:
+			cancelFn()
+			done = true
 		}
-		resource, err = mikrotik.ReadFiltered(filter, s.ResourcePath, client)
 	}
 
-	// res, err := mikrotik.Read("/system/identity", client)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("")
-	}
-
-	var res = exporter.ResourceStats{Name: s.ResourceName}
-	var reStat, statFields, skipFields = s.GetResourceFilter(), s.GetStatFields(), s.GetSkipFields()
-
-	for _, instance := range resource {
-		var is = exporter.InstanceStats{Stats: make(map[string]any)}
-
-		for k, v := range instance {
-			if k == s.NameField {
-				is.Name = v
-				continue
-			}
-
-			if _, ok := skipFields[k]; ok {
-				continue
-			}
-
-			if _, ok := statFields[k]; !ok && !reStat.MatchString(k) {
-				continue
-			}
-
-			is.Stats[k] = v
-		}
-
-		res.Instance = append(res.Instance, is)
-	}
-
-	spew.Dump(res)
+	log.Printf("waiting for exporters")
+	wg.Wait()
 }

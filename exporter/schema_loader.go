@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func LoadResSchemas(ctx context.Context, basedir string) (*[]ResSchema, error) {
+func LoadResSchemas(ctx context.Context, basedir string) ([]ResSchema, error) {
 	var files []string
 	err := filepath.Walk(basedir, func(path string, f os.FileInfo, err error) error {
 		if !f.IsDir() {
@@ -40,5 +40,5 @@ func LoadResSchemas(ctx context.Context, basedir string) (*[]ResSchema, error) {
 		res = append(res, *s)
 	}
 
-	return &res, nil
+	return res, nil
 }
