@@ -1,4 +1,4 @@
-module github.com/vaerh/mikrotik-stats-exporter
+module github.com/vaerh/mikrotik-prom-exporter
 
 go 1.22.1
 

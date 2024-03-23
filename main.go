@@ -6,8 +6,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
-	"github.com/vaerh/mikrotik-stats-exporter/exporter"
-	"github.com/vaerh/mikrotik-stats-exporter/mikrotik"
+	"github.com/vaerh/mikrotik-prom-exporter/exporter"
+	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
 )
 
 var (
