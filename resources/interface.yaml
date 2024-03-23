@@ -1,0 +1,12 @@
+---
+resource_name: interface
+resource_path: /interface
+name_field: name
+filter:
+  l2mtu: 1598
+stat_fields:
+  - fp-rx-byte
+  - fp-tx-byte
+stat_fields_re: ^(rx|tx)
+skip_fields:
+  - rx-drop
