@@ -19,6 +19,7 @@ import (
 type Client interface {
 	GetTransport() TransportType
 	SendRequest(method crudMethod, url *URL) ([]MikrotikItem, error)
+	WithContext(ctx context.Context) context.Context
 }
 
 type crudMethod int
@@ -135,6 +136,17 @@ func NewClient(ctx context.Context, conf *Config) (Client, error) {
 	}
 
 	return rest, nil
+}
+
+type ctxKey struct{}
+
+func Ctx(ctx context.Context) Client {
+	if c, ok := ctx.Value(ctxKey{}).(*RestClient); ok {
+		return c
+	} else if c, ok := ctx.Value(ctxKey{}).(*ApiClient); ok {
+		return c
+	}
+	return nil
 }
 
 type URL struct {

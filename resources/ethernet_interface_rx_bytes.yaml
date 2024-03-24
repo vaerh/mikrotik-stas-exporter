@@ -1,11 +1,23 @@
-
-prom_metric_name: ethernet_rx_bytes_counter
-prom_metric_help: "Number of bytes received in the interface"
-prom_const_labels:
-  interface_type: ethernet
-
+namespace: mikrotik
+subsystem: interface_ethernet
 resource_path: "/interface/ethernet"
+
+global_labels:
+  name: "$default-name"
+  interface_type: "ethernet" # const
+  speed: "$speed"            # dynamic
+
+metrics:
+  - name: total_received_bytes_counter
+    type: CounterVec
+    field: "rx-bytes"
+    field_type: float64
+    labels: 
+      static_comment: comment
+      comment: $comment
+  - name: total_sent_bytes_counter
+    type: CounterVec
+    field: "tx-bytes"
+    field_type: Float64
+
 resource_filter: null
-label_name_fields:
-  interface_name: name
-metric_value_field: "rx-bytes"

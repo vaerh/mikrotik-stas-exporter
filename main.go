@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/zerolog/log"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog/log"
 
 	"github.com/rs/zerolog"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
@@ -24,7 +26,6 @@ func init() {
 }
 
 func main() {
-
 	schemas, err := exporter.LoadResSchemas(ctx, "resources")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("")
@@ -49,6 +50,7 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("creating mikrotik client")
 	}
+	ctx = client.WithContext(ctx)
 
 	signalChan := make(chan os.Signal, 10)
 	signal.Notify(signalChan, os.Interrupt, os.Kill)
@@ -56,13 +58,22 @@ func main() {
 	wg := sync.WaitGroup{}
 	ctx, cancelFn := context.WithCancel(ctx)
 
+	globalReg := prometheus.NewRegistry()
+
 	for _, s := range schemas {
 		wg.Add(1)
+
+		workerReg := prometheus.NewRegistry()
+		globalReg.Register(workerReg)
+
 		go func() {
-			rExporter := exporter.NewResourceExporter(s, client)
+			defer globalReg.Unregister(workerReg)
+
+			rExporter := exporter.NewResourceExporter(ctx, &s, workerReg)
 			if err := rExporter.ExportMetrics(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
 			}
+
 			wg.Done()
 		}()
 	}

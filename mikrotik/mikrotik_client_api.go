@@ -41,7 +41,7 @@ func (c *ApiClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, er
 		return nil, err
 	}
 
-	LogMessage(c.ctx, DEBUG, "response body: "+resp.String())
+	LogMessage(c.ctx, TRACE, "response body: "+resp.String())
 
 	// Unmarshal
 	var res []MikrotikItem
@@ -59,4 +59,11 @@ func (c *ApiClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, er
 	}
 
 	return res, nil
+}
+
+func (c *ApiClient) WithContext(ctx context.Context) context.Context {
+	if _, ok := ctx.Value(ctxKey{}).(*ApiClient); !ok {
+		return ctx
+	}
+	return context.WithValue(ctx, ctxKey{}, c)
 }

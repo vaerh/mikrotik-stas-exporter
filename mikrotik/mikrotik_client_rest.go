@@ -73,7 +73,7 @@ func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, e
 		}
 	}
 
-	LogMessage(c.ctx, DEBUG, "response body: "+string(body))
+	LogMessage(c.ctx, TRACE, "response body: "+string(body))
 
 	if len(body) > 2 {
 		var result []MikrotikItem
@@ -102,4 +102,8 @@ func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, e
 	}
 
 	return nil, nil
+}
+
+func (c *RestClient) WithContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, c)
 }
