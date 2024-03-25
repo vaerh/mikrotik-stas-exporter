@@ -26,35 +26,36 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 		schema:      schema,
 		promMertics: make(map[string]any),
 	}
-	var globalLabels = make([]string, 0, len(schema.PromGlobalLabels))
-
-	for key := range schema.PromGlobalLabels {
-		globalLabels = append(globalLabels, key)
-	}
 
 	for _, metric := range schema.Metrics {
-		labels := make([]string, 0, len(globalLabels)+len(metric.PromLabels))
-		labels = append(labels, globalLabels...)
-
-		for key := range metric.PromLabels {
-			labels = append(labels, key)
-		}
-
 		switch metric.PromMetricType {
 		case CounterVec:
 			counter := promauto.NewCounterVec(prom.CounterOpts{
-				Namespace: schema.PromNamespace,
-				Subsystem: schema.PromSubsystem,
-				Name:      metric.PromMetricName,
-				Help:      metric.PromMetricHelp,
-			}, labels)
+				Namespace:   schema.PromNamespace,
+				Subsystem:   schema.PromSubsystem,
+				Name:        metric.PromMetricName,
+				Help:        metric.PromMetricHelp,
+				ConstLabels: metric.constLabels,
+			}, metric.GetLabels())
 
 			reg.MustRegister(counter)
 			exporter.promMertics[metric.PromMetricName] = counter
+
+		case GaugeVec:
+			gauge := promauto.NewGaugeVec(prom.GaugeOpts{
+				Namespace:   schema.PromNamespace,
+				Subsystem:   schema.PromSubsystem,
+				Name:        metric.PromMetricName,
+				Help:        metric.PromMetricHelp,
+				ConstLabels: metric.constLabels,
+			}, metric.GetLabels())
+
+			reg.MustRegister(gauge)
+			exporter.promMertics[metric.PromMetricName] = gauge
 		}
 
 		// FIXME
-		spew.Dump(labels)
+		spew.Dump(metric.GetLabels())
 	}
 
 	return exporter
@@ -89,7 +90,7 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 	}
 
 	for _, instanceJSON := range resource {
-		// collect metrics & private labels
+		// collect metrics & labels
 		for _, metric := range r.schema.Metrics {
 			var res any
 			var err error
@@ -103,27 +104,15 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 				}
 			}
 
-			var labels = make(prom.Labels)
-			// Add global labels
-			for name, text := range r.schema.PromGlobalLabels {
-				if len(text) > 1 && text[0] == '$' {
-					labels[name] = instanceJSON[text[1:]]
-				} else {
-					labels[name] = text
-				}
-			}
-
-			// Add private labels
-			for name, text := range metric.PromLabels {
-				if len(text) > 1 && text[0] == '$' {
-					labels[name] = instanceJSON[text[1:]]
-				} else {
-					labels[name] = text
-				}
+			var labels = make(prom.Labels, len(metric.labels))
+			for labelName, mtFieldName := range metric.labels {
+				labels[labelName] = instanceJSON[mtFieldName]
 			}
 
 			switch m := r.promMertics[metric.PromMetricName].(type) {
 			case *prom.CounterVec:
+				m.With(labels).Add(res.(float64))
+			case *prom.GaugeVec:
 				m.With(labels).Add(res.(float64))
 			}
 		}

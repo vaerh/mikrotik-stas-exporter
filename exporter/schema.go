@@ -6,6 +6,7 @@ import (
 
 const (
 	CounterVec = "CounterVec"
+	GaugeVec   = "GaugeVec"
 
 	Float64 = "float64"
 )
@@ -27,6 +28,7 @@ type ResourceSchema struct {
 type ResourceMetric struct {
 	// PromMetricName Name of the metric to be created
 	PromMetricName string `yaml:"name"`
+	// PromMetricType
 	PromMetricType string `yaml:"type"`
 	MtFieldName    string `yaml:"field"`
 	// MtFieldType The Mikrotik field from which the value will be retrieved
@@ -37,5 +39,15 @@ type ResourceMetric struct {
 	PromLabels prom.Labels `yaml:"labels,omitempty"`
 	// PromMetricHelp help description of the metric
 	PromMetricHelp string `yaml:"help,omitempty"`
-	// PromMetricType
+
+	labels      prom.Labels
+	constLabels prom.Labels
+}
+
+func (m *ResourceMetric) GetLabels() []string {
+	var res = make([]string, 0, len(m.labels))
+	for key := range m.labels {
+		res = append(res, key)
+	}
+	return res
 }

@@ -15,8 +15,8 @@ metrics:
     labels: 
       static_comment: comment
       comment: $comment
-  - name: total_sent_bytes_counter
-    type: CounterVec
+  - name: total_sent_bytes_gauge
+    type: GaugeVec
     field: "tx-bytes"
     field_type: Float64
 
