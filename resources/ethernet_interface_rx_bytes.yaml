@@ -1,0 +1,11 @@
+
+prom_metric_name: ethernet_rx_bytes_counter
+prom_metric_help: "Number of bytes received in the interface"
+prom_const_labels:
+  interface_type: ethernet
+
+resource_path: "/interface/ethernet"
+resource_filter: null
+label_name_fields:
+  interface_name: name
+metric_value_field: "rx-bytes"
