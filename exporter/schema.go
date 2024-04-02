@@ -4,11 +4,15 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 )
 
+type MetricType uint
+
 const (
 	CounterVec = "CounterVec"
 	GaugeVec   = "GaugeVec"
+	Ephemeral  = "Ephemeral"
 
-	Float64 = "float64"
+	Int  = "int"
+	Time = "time"
 )
 
 type ResourceSchema struct {

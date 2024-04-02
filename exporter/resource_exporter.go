@@ -18,6 +18,7 @@ type ResourceExporter struct {
 	ctx         context.Context
 	schema      *ResourceSchema
 	promMertics map[string]any
+	globalVars  map[string]string
 }
 
 func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.Registry) *ResourceExporter {
@@ -41,7 +42,7 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 			reg.MustRegister(counter)
 			exporter.promMertics[metric.PromMetricName] = counter
 
-		case GaugeVec:
+		case GaugeVec, Ephemeral:
 			gauge := promauto.NewGaugeVec(prom.GaugeOpts{
 				Namespace:   schema.PromNamespace,
 				Subsystem:   schema.PromSubsystem,
@@ -95,25 +96,40 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 			var res any
 			var err error
 			// Parse value
+			inVal := instanceJSON[metric.MtFieldName]
 			switch strings.ToLower(metric.MtFieldType) {
-			case Float64:
-				res, err = strconv.ParseFloat(instanceJSON[metric.MtFieldName], 64)
+			case Int:
+				res, err = strconv.ParseFloat(inVal, 64)
 				if err != nil {
 					logger.Warn().Err(err).Msg("extracting value from resource")
 					continue
 				}
+			case Time:
+				d, err := mikrotik.ParseDuration(inVal)
+				if err != nil {
+					logger.Warn().Err(err).Msg("extracting value from resource")
+					continue
+				}
+				res = d.Seconds()
 			}
 
 			var labels = make(prom.Labels, len(metric.labels))
 			for labelName, mtFieldName := range metric.labels {
 				labels[labelName] = instanceJSON[mtFieldName]
+				if v, ok := r.globalVars[mtFieldName]; ok {
+					labels[labelName] = v
+				}
 			}
 
 			switch m := r.promMertics[metric.PromMetricName].(type) {
 			case *prom.CounterVec:
 				m.With(labels).Add(res.(float64))
 			case *prom.GaugeVec:
-				m.With(labels).Add(res.(float64))
+				if metric.PromMetricType != Ephemeral {
+					m.With(labels).Set(res.(float64))
+				} else {
+					m.With(labels).Set(1)
+				}
 			}
 		}
 	}
@@ -129,4 +145,8 @@ func (r *ResourceExporter) ReadResource() ([]mikrotik.MikrotikItem, error) {
 		filter = append(filter, k+"="+v)
 	}
 	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx))
+}
+
+func (r *ResourceExporter) SetGlobalVars(m map[string]string) {
+	r.globalVars = m
 }
