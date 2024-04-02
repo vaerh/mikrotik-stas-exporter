@@ -1,23 +1,24 @@
 namespace: mikrotik
-subsystem: interface_ethernet
-resource_path: "/interface/ethernet"
+subsystem: interface
+resource_path: /interface
 
 global_labels:
-  name: "$default-name"
-  interface_type: "ethernet" # const
-  speed: "$speed"            # dynamic
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  name: $name
 
 metrics:
-  - name: total_received_bytes_counter
-    type: CounterVec
-    field: "rx-bytes"
-    field_type: float64
-    labels: 
-      static_comment: comment
-      comment: $comment
-  - name: total_sent_bytes_gauge
+  - name: rx_byte_total
+    help: Number of received bytes
     type: GaugeVec
-    field: "tx-bytes"
-    field_type: Float64
+    field: rx-byte
+    field_type: int
+    labels: null
+  - name: tx_byte_total
+    help: Number of transmitted bytes
+    type: GaugeVec
+    field: tx-byte
+    field_type: int
+    labels: null
 
 resource_filter: null
