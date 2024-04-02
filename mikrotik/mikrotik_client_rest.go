@@ -43,7 +43,7 @@ func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, e
 	requestUrl := c.HostURL + "/rest" + strings.Replace(url.GetRestURL(), " ", "%20", -1)
 	LogMessage(c.ctx, DEBUG, restMethodName[method]+" request URL:  "+requestUrl)
 
-	req, err := http.NewRequest(restMethodName[method], requestUrl, data)
+	req, err := http.NewRequestWithContext(c.ctx, restMethodName[method], requestUrl, data)
 	if err != nil {
 		return nil, err
 	}
