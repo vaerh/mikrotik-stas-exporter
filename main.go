@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -45,6 +47,21 @@ func main() {
 		Username: os.Getenv("USERNAME"),
 		Password: os.Getenv("PASSWORD"),
 	}
+	globalVars := map[string]string{
+		"HOSTURL":  conf.HostURL,
+		"USERNAME": conf.Username,
+		// FIXME
+		"ALIAS": "Sample-Router",
+	}
+
+	routerUrl, err := url.Parse(conf.HostURL)
+	if err != nil {
+		log.Err(err).Msg("")
+	} else {
+		globalVars["HOSTNAME"] = routerUrl.Hostname()
+	}
+
+	ctx, cancelFn := context.WithCancel(ctx)
 
 	client, err := mikrotik.NewClient(ctx, conf)
 	if err != nil {
@@ -53,10 +70,9 @@ func main() {
 	ctx = client.WithContext(ctx)
 
 	signalChan := make(chan os.Signal, 10)
-	signal.Notify(signalChan, os.Interrupt, os.Kill)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
 	wg := sync.WaitGroup{}
-	ctx, cancelFn := context.WithCancel(ctx)
 
 	globalReg := prometheus.NewRegistry()
 
@@ -70,6 +86,8 @@ func main() {
 			defer globalReg.Unregister(workerReg)
 
 			rExporter := exporter.NewResourceExporter(ctx, &s, workerReg)
+			rExporter.SetGlobalVars(globalVars)
+
 			if err := rExporter.ExportMetrics(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
 			}
@@ -78,13 +96,16 @@ func main() {
 		}()
 	}
 
-	for done := false; !done; {
-		select {
-		case <-signalChan:
-			cancelFn()
-			done = true
-		}
-	}
+	// for done := false; !done; {
+	// 	select {
+	// 	case <-signalChan:
+	// 		cancelFn()
+	// 		done = true
+	// 	}
+	// }
+
+	<-signalChan
+	cancelFn()
 
 	log.Printf("waiting for exporters")
 	wg.Wait()
