@@ -21,6 +21,7 @@ import (
 var (
 	ctx    = context.Background()
 	logger = zerolog.New(os.Stdout)
+	// maxConcurrentWorkers = 10
 )
 
 func init() {
@@ -32,14 +33,6 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("")
 	}
-
-	http.Handle("/metrics", promhttp.Handler())
-
-	go func() {
-		if err = http.ListenAndServe(":8080", nil); err != nil {
-			logger.Fatal().Err(err).Msg("")
-		}
-	}()
 
 	conf := &mikrotik.Config{
 		Insecure: true,
@@ -73,6 +66,7 @@ func main() {
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 
 	wg := sync.WaitGroup{}
+	// sem := semaphore.NewWeighted(maxConcurrentWorkers)
 
 	globalReg := prometheus.NewRegistry()
 
@@ -95,6 +89,15 @@ func main() {
 			wg.Done()
 		}()
 	}
+
+	// http.Handle("/metrics", promhttp.Handler())
+	http.Handle("/metrics", promhttp.HandlerFor(globalReg, promhttp.HandlerOpts{}))
+
+	go func() {
+		if err = http.ListenAndServe(":8080", nil); err != nil {
+			logger.Fatal().Err(err).Msg("")
+		}
+	}()
 
 	// for done := false; !done; {
 	// 	select {

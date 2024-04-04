@@ -1,0 +1,15 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/pool/used
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  pool: $pool
+
+metrics:
+  - name: pool_used
+    help: Number of used addresses per IP pool
+    type: GaugeVec
+    operation: Inc
+    reset_gauge: true

@@ -9,10 +9,17 @@ type MetricType uint
 const (
 	CounterVec = "CounterVec"
 	GaugeVec   = "GaugeVec"
-	Ephemeral  = "Ephemeral"
 
-	Int  = "int"
-	Time = "time"
+	Int   = "int"
+	Time  = "time"
+	Const = "const"
+
+	OperAdd      = "Add"
+	OperSub      = "Sub"
+	OperInc      = "Inc"
+	OperDec      = "Dec"
+	OperSet      = "Set"
+	OperCurrTime = "SetToCurrentTime"
 )
 
 type ResourceSchema struct {
@@ -34,7 +41,11 @@ type ResourceMetric struct {
 	PromMetricName string `yaml:"name"`
 	// PromMetricType
 	PromMetricType string `yaml:"type"`
-	MtFieldName    string `yaml:"field"`
+	// Metric operation
+	PromMetricOperation string `yaml:"operation,omitempty"`
+	// Reset metric to zero on new statistic collection
+	PromResetGaugeEveryTime bool   `yaml:"reset_gauge,omitempty"`
+	MtFieldName             string `yaml:"field,omitempty"`
 	// MtFieldType The Mikrotik field from which the value will be retrieved
 	// Haven't had time to look, if the types of incoming metrics to add are clearly defined,
 	// then these fields are not needed.

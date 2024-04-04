@@ -58,16 +58,3 @@ metrics:
     type: GaugeVec
     field: cpu-frequency
     field_type: int
-
-  # - name: routerboard_voltage
-  #   help: Supplied routerboard voltage
-  #   type: GaugeVec
-  #   field: 
-  #   field_type: int
-
-  # - name: 
-  #   help: 
-  #   type: GaugeVec
-  #   field: 
-  #   field_type: int
-

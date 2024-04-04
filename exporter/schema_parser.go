@@ -36,8 +36,8 @@ func SchemaParser(schemaFileName string) (*ResourceSchema, error) {
 		}
 	}
 
-	// Add private labels
 	for i := range res.Metrics {
+		// Add private labels
 		res.Metrics[i].labels = make(prom.Labels, len(globalLabels))
 		res.Metrics[i].constLabels = make(prom.Labels, len(globalConstLabels))
 
@@ -57,6 +57,10 @@ func SchemaParser(schemaFileName string) (*ResourceSchema, error) {
 			}
 		}
 
+		// Validate field_type
+		if res.Metrics[i].MtFieldType == Const {
+			res.Metrics[i].PromMetricOperation = OperSet
+		}
 	}
 
 	return &res, nil

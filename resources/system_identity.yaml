@@ -5,7 +5,8 @@ resource_path: /system/identity
 metrics:
   - name: identity
     help: System identity
-    type: Ephemeral
+    type: GaugeVec
+    field_type: const
     labels:
       name: $name
       routerboard_address: $HOSTNAME

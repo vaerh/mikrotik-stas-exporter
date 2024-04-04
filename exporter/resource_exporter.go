@@ -42,7 +42,7 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 			reg.MustRegister(counter)
 			exporter.promMertics[metric.PromMetricName] = counter
 
-		case GaugeVec, Ephemeral:
+		case GaugeVec:
 			gauge := promauto.NewGaugeVec(prom.GaugeOpts{
 				Namespace:   schema.PromNamespace,
 				Subsystem:   schema.PromSubsystem,
@@ -90,6 +90,15 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 		return fmt.Errorf("reading resource: %w", err)
 	}
 
+	// Zeroize
+	for _, metric := range r.schema.Metrics {
+		if metric.PromResetGaugeEveryTime {
+			if g, ok := r.promMertics[metric.PromMetricName].(*prom.GaugeVec); ok {
+				g.Reset()
+			}
+		}
+	}
+
 	for _, instanceJSON := range resource {
 		// collect metrics & labels
 		for _, metric := range r.schema.Metrics {
@@ -111,6 +120,8 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 					continue
 				}
 				res = d.Seconds()
+			case Const:
+				res = float64(1.0)
 			}
 
 			var labels = make(prom.Labels, len(metric.labels))
@@ -123,12 +134,27 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 
 			switch m := r.promMertics[metric.PromMetricName].(type) {
 			case *prom.CounterVec:
-				m.With(labels).Add(res.(float64))
-			case *prom.GaugeVec:
-				if metric.PromMetricType != Ephemeral {
-					m.With(labels).Set(res.(float64))
+				if metric.PromMetricOperation == OperAdd {
+					m.With(labels).Add(res.(float64))
 				} else {
-					m.With(labels).Set(1)
+					m.With(labels).Inc()
+				}
+			case *prom.GaugeVec:
+				switch metric.PromMetricOperation {
+				case OperInc:
+					m.With(labels).Inc()
+				case OperDec:
+					m.With(labels).Dec()
+				case OperAdd:
+					m.With(labels).Add(res.(float64))
+				case OperSub:
+					m.With(labels).Sub(res.(float64))
+				case OperCurrTime:
+					m.With(labels).SetToCurrentTime()
+				case OperSet:
+					fallthrough
+				default:
+					m.With(labels).Set(res.(float64))
 				}
 			}
 		}

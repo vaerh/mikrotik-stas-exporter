@@ -13,12 +13,45 @@ metrics:
     type: GaugeVec
     field: rx-byte
     field_type: int
-    labels: null
   - name: tx_byte_total
     help: Number of transmitted bytes
     type: GaugeVec
     field: tx-byte
     field_type: int
-    labels: null
+  - name: rx_packet_total
+    help: Number of packets received
+    type: GaugeVec
+    field: rx-packet
+    field_type: int
+  - name: tx_packet_total
+    help: Number of packets transmitted
+    type: GaugeVec
+    field: tx-packet
+    field_type: int
+  - name: rx_error_total
+    help: Number of packets received with an error
+    type: GaugeVec
+    field: rx-error
+    field_type: int
+  - name: tx_error_total
+    help: Number of packets transmitted with an error
+    type: GaugeVec
+    field: tx-error
+    field_type: int
+  - name: rx_drop_total
+    help: Number of received packets being dropped
+    type: GaugeVec
+    field: rx-drop
+    field_type: int
+  - name: tx_drop_total
+    help: Number of transmitted packets being dropped
+    type: GaugeVec
+    field: tx-drop
+    field_type: int
+  - name: link_downs_total
+    help: Number of times link went down
+    type: GaugeVec
+    field: link-downs
+    field_type: int
 
 resource_filter: null

@@ -1,0 +1,14 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/firewall/connection
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+
+metrics:
+  - name: connections_total
+    help: Number of IP connections
+    type: GaugeVec
+    operation: Inc
+    reset_gauge: true
