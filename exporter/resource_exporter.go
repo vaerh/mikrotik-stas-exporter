@@ -110,18 +110,20 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 			case Int:
 				res, err = strconv.ParseFloat(inVal, 64)
 				if err != nil {
-					logger.Warn().Err(err).Msg("extracting value from resource")
+					logger.Warn().Fields(map[string]any{metric.MtFieldName: inVal}).Err(err).Msg("extracting value from resource")
 					continue
 				}
 			case Time:
 				d, err := mikrotik.ParseDuration(inVal)
 				if err != nil {
-					logger.Warn().Err(err).Msg("extracting value from resource")
+					logger.Warn().Fields(map[string]any{metric.MtFieldName: inVal}).Err(err).Msg("extracting value from resource")
 					continue
 				}
 				res = d.Seconds()
 			case Const:
 				res = float64(1.0)
+			case Bool:
+				res = mikrotik.BoolFromMikrotikJSONToFloat(inVal)
 			}
 
 			var labels = make(prom.Labels, len(metric.labels))

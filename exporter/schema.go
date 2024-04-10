@@ -13,6 +13,7 @@ const (
 	Int   = "int"
 	Time  = "time"
 	Const = "const"
+	Bool  = "bool"
 
 	OperAdd      = "Add"
 	OperSub      = "Sub"

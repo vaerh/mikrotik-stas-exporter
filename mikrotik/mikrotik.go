@@ -11,9 +11,9 @@ const (
 // MikrotikItem Contains only data.
 type MikrotikItem map[string]string
 
-func BoolFromMikrotikJSON(s string) bool {
+func BoolFromMikrotikJSONToFloat(s string) float64 {
 	if s == "true" || s == "yes" {
-		return true
+		return 1.0
 	}
-	return false
+	return 0.0
 }
