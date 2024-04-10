@@ -1,0 +1,19 @@
+namespace: mikrotik
+subsystem: users
+resource_path: /user/active
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  address: $address
+  group: $group
+  name: $name
+  via: $via
+  when: $when
+
+metrics:
+  - name: active_users_info
+    help: Active Users
+    type: GaugeVec
+    operation: Inc
+    reset_gauge: true
