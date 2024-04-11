@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
@@ -56,7 +55,7 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 		}
 
 		// FIXME
-		spew.Dump(metric.GetLabels())
+		// spew.Dump(metric.GetLabels())
 	}
 
 	return exporter
@@ -85,7 +84,7 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("exporting resources")
 
-	resource, err := r.ReadResource()
+	mikrotikResource, err := r.ReadResource()
 	if err != nil {
 		return fmt.Errorf("reading resource: %w", err)
 	}
@@ -99,7 +98,7 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 		}
 	}
 
-	for _, instanceJSON := range resource {
+	for _, instanceJSON := range mikrotikResource {
 		// collect metrics & labels
 		for _, metric := range r.schema.Metrics {
 			var res any
@@ -166,13 +165,13 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 
 func (r *ResourceExporter) ReadResource() ([]mikrotik.MikrotikItem, error) {
 	if len(r.schema.ResourceFilter) == 0 {
-		return mikrotik.Read(r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx))
+		return mikrotik.Read(r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
 	}
 	var filter []string
 	for k, v := range r.schema.ResourceFilter {
 		filter = append(filter, k+"="+v)
 	}
-	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx))
+	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
 }
 
 func (r *ResourceExporter) SetGlobalVars(m map[string]string) {

@@ -14,8 +14,11 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/rs/zerolog"
+	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
+
+	_ "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 )
 
 var (
@@ -69,6 +72,25 @@ func main() {
 	// sem := semaphore.NewWeighted(maxConcurrentWorkers)
 
 	globalReg := prometheus.NewRegistry()
+
+	for _, m := range complexmetrics.ComplexMetrics {
+		wg.Add(1)
+
+		workerReg := prometheus.NewRegistry()
+		globalReg.Register(workerReg)
+
+		go func() {
+			defer globalReg.Unregister(workerReg)
+
+			m.Register(ctx, prometheus.Labels{}, workerReg)
+
+			if err := m.StartCollecting(ctx); err != nil {
+				logger.Err(err).Msg("exporting metrics")
+			}
+
+			wg.Done()
+		}()
+	}
 
 	for _, s := range schemas {
 		wg.Add(1)

@@ -8,15 +8,23 @@ var (
 	errEmptyPath = fmt.Errorf("the resource path not defined")
 )
 
-func Read(resourcePath string, c Client) ([]MikrotikItem, error) {
+func Monitor(resourcePath string, c Client, data map[string]string) ([]MikrotikItem, error) {
 	if resourcePath == "" {
 		return nil, errEmptyPath
 	}
 
-	return c.SendRequest(crudRead, &URL{Path: resourcePath})
+	return c.SendRequest(crudMonitor, &URL{Path: resourcePath + "/monitor"}, data)
 }
 
-func ReadFiltered(filter []string, resourcePath string, c Client) ([]MikrotikItem, error) {
+func Read(resourcePath string, c Client, data map[string]string) ([]MikrotikItem, error) {
+	if resourcePath == "" {
+		return nil, errEmptyPath
+	}
+
+	return c.SendRequest(crudRead, &URL{Path: resourcePath}, data)
+}
+
+func ReadFiltered(filter []string, resourcePath string, c Client, data map[string]string) ([]MikrotikItem, error) {
 	if resourcePath == "" {
 		return nil, errEmptyPath
 	}
@@ -29,5 +37,5 @@ func ReadFiltered(filter []string, resourcePath string, c Client) ([]MikrotikIte
 			filter[i] = "?=" + s
 		}
 	}
-	return c.SendRequest(crudRead, &URL{Path: resourcePath, Query: filter})
+	return c.SendRequest(crudRead, &URL{Path: resourcePath, Query: filter}, data)
 }

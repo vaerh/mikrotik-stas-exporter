@@ -2,6 +2,7 @@ package mikrotik
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/go-routeros/routeros"
@@ -18,8 +19,9 @@ type ApiClient struct {
 
 var (
 	apiMethodName = map[crudMethod]string{
-		crudRead: "/print",
-		crudPost: "/set",
+		crudRead:    "/print",
+		crudPost:    "/set",
+		crudMonitor: "/monitor",
 	}
 )
 
@@ -27,13 +29,17 @@ func (c *ApiClient) GetTransport() TransportType {
 	return c.Transport
 }
 
-func (c *ApiClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, error) {
+func (c *ApiClient) SendRequest(method crudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
 
 	// https://help.mikrotik.com/docs/display/ROS/API
 	// /interface/vlan/print + '?.id=*39' + '?type=vlan'
 	cmd := url.GetApiCmd()
 	// The first element is the Path
 	cmd[0] += apiMethodName[method]
+
+	for k, v := range data {
+		cmd = append(cmd, fmt.Sprintf("=%v=%v", k, v))
+	}
 	LogMessage(c.ctx, DEBUG, "request CMD:  "+strings.Join(cmd, ""))
 
 	resp, err := c.RunArgs(cmd)
