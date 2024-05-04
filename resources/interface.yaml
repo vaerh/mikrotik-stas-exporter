@@ -53,10 +53,5 @@ metrics:
     type: GaugeVec
     field: link-downs
     field_type: int
-  - name: status
-    help: Current interface link status
-    type: GaugeVec
-    field: running
-    field_type: bool
 
 resource_filter:
