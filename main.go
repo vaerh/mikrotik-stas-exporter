@@ -73,7 +73,7 @@ func main() {
 
 	globalReg := prometheus.NewRegistry()
 
-	for _, m := range complexmetrics.ComplexMetrics {
+	for _, m := range complexmetrics.ComplexMetrics.Metrics {
 		wg.Add(1)
 
 		workerReg := prometheus.NewRegistry()

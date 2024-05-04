@@ -24,47 +24,47 @@ type InterfaceStatus struct {
 }
 
 // Register implements Metric.
-func (ir *InterfaceStatus) Register(ctx context.Context, constLabels prometheus.Labels, reg prometheus.Registerer) {
-	ir.duplex = promauto.NewGaugeVec(prometheus.GaugeOpts{
+func (iface *InterfaceStatus) Register(ctx context.Context, constLabels prometheus.Labels, reg prometheus.Registerer) {
+	iface.duplex = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "full_duplex",
 		Help:        "Full duplex data transmission",
 		ConstLabels: constLabels,
 	}, []string{"name"})
-	reg.MustRegister(ir.duplex)
+	reg.MustRegister(iface.duplex)
 
-	ir.rate = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	iface.rate = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "rate",
 		Help:        "Actual interface connection data rate",
 		ConstLabels: constLabels,
 	}, []string{"name"})
-	reg.MustRegister(ir.rate)
+	reg.MustRegister(iface.rate)
 
-	ir.status = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	iface.status = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "status",
 		Help:        "Current interface link status",
 		ConstLabels: constLabels,
 	}, []string{"name"})
-	reg.MustRegister(ir.status)
+	reg.MustRegister(iface.status)
 
-	ir.sfpTemp = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	iface.sfpTemp = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "sfp_temperature",
 		Help:        "Current SFP temperature",
 		ConstLabels: constLabels,
 	}, []string{"name"})
-	reg.MustRegister(ir.sfpTemp)
+	reg.MustRegister(iface.sfpTemp)
 }
 
 // Collect implements Metric.
-func (ir *InterfaceStatus) StartCollecting(ctx context.Context) error {
-	return startCollecting(ctx, ir.collect)
+func (iface *InterfaceStatus) StartCollecting(ctx context.Context) error {
+	return startCollecting(ctx, iface.collect)
 }
 
 func (is *InterfaceStatus) collect(ctx context.Context) error {

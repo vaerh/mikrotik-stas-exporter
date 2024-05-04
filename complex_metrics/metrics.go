@@ -14,14 +14,14 @@ type Metric interface {
 	StartCollecting(ctx context.Context) error
 }
 
-var ComplexMetrics = ComplexmetricType{}
+var ComplexMetrics = ComplexMetricsType{}
 
-type ComplexmetricType struct {
-	Metric []Metric
+type ComplexMetricsType struct {
+	Metrics []Metric
 }
 
-func (m *ComplexmetricType) AddMetric(metric Metric) {
-	m.Metric = append(m.Metric, metric)
+func (m *ComplexMetricsType) AddMetric(metric Metric) {
+	m.Metrics = append(m.Metrics, metric)
 }
 
 // FIXME
