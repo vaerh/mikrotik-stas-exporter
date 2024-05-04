@@ -3,6 +3,7 @@ module github.com/vaerh/mikrotik-prom-exporter
 go 1.22.1
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/go-routeros/routeros v0.0.0-20210123142807-2a44d57c6730
 	github.com/prometheus/client_golang v1.19.0
 	github.com/rs/zerolog v1.32.0

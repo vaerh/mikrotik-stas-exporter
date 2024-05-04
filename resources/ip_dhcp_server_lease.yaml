@@ -1,0 +1,27 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/dhcp-server/lease
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  server: $server
+
+metrics:
+  - name: dhcp_lease_active_count
+    help: Number of active leases per DHCP server
+    type: GaugeVec
+    operation: Inc
+    reset_gauge: true
+  - name: dhcp_lease_info
+    help: DHCP Active Leases
+    type: GaugeVec
+    operation: Set
+    field: expires-after
+    field_type: time
+    labels:
+      active_address: $active-address
+      address: $address
+      comment: $comment
+      host_name: $host-name
+      mac_address: $mac-address

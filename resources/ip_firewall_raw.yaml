@@ -1,0 +1,20 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/firewall/raw
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+
+metrics:
+  - name: firewall_raw_total
+    help: Total amount of bytes matched by raw firewall rules
+    type: GaugeVec
+    operation: Set
+    field: bytes
+    field_type: int
+    labels:
+      chain: $chain
+      action: $action
+      comment: $comment
+      log: $log

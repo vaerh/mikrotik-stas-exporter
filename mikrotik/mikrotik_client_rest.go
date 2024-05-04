@@ -1,6 +1,7 @@
 package mikrotik
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,8 +27,9 @@ type errorResponse struct {
 
 var (
 	restMethodName = map[crudMethod]string{
-		crudRead: "GET",
-		crudPost: "POST",
+		crudRead:    "GET",
+		crudPost:    "POST",
+		crudMonitor: "POST",
 	}
 )
 
@@ -35,15 +37,28 @@ func (c *RestClient) GetTransport() TransportType {
 	return c.Transport
 }
 
-func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, error) {
-	var data io.Reader
+func (c *RestClient) SendRequest(method crudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
+	var buf io.Reader
+	var bb string
+
+	if data != nil {
+		method = crudPost
+
+		b, err := json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
+		bb = string(b)
+
+		buf = bytes.NewBuffer(b)
+	}
 
 	// https://mikrotik + /rest + /interface/vlan + ? + .id=*39
 	// Escaping spaces!
 	requestUrl := c.HostURL + "/rest" + strings.Replace(url.GetRestURL(), " ", "%20", -1)
-	LogMessage(c.ctx, DEBUG, restMethodName[method]+" request URL:  "+requestUrl)
+	LogMessage(c.ctx, DEBUG, restMethodName[method]+" request URL:  "+requestUrl+", body: "+bb)
 
-	req, err := http.NewRequest(restMethodName[method], requestUrl, data)
+	req, err := http.NewRequestWithContext(c.ctx, restMethodName[method], requestUrl, buf)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +88,7 @@ func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, e
 		}
 	}
 
-	LogMessage(c.ctx, DEBUG, "response body: "+string(body))
+	LogMessage(c.ctx, TRACE, "response body: "+string(body))
 
 	if len(body) > 2 {
 		var result []MikrotikItem
@@ -102,4 +117,8 @@ func (c *RestClient) SendRequest(method crudMethod, url *URL) ([]MikrotikItem, e
 	}
 
 	return nil, nil
+}
+
+func (c *RestClient) WithContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, c)
 }

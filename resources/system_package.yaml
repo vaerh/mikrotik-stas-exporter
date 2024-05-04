@@ -1,0 +1,18 @@
+namespace: mikrotik
+subsystem: system
+resource_path: /system/package
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+
+metrics:
+  - name: installed_packages_info
+    help: Installed Packages
+    type: GaugeVec
+    field_type: const
+    labels:
+      build_time: $build-time
+      disabled: $disabled
+      name: $name
+      version: $version

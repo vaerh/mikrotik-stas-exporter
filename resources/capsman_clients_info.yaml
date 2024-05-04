@@ -1,0 +1,16 @@
+namespace: mikrotik
+subsystem: capsman
+resource_path: /caps-man/registration-table
+
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  dhcp_name: $dhcp-name
+  mac_address: $mac-address
+
+metrics:
+  - name: clients_signal_strength
+    help: Client devices signal strength
+    type: GaugeVec
+    field: rx-signal
+    field_type: int

@@ -18,7 +18,9 @@ import (
 
 type Client interface {
 	GetTransport() TransportType
-	SendRequest(method crudMethod, url *URL) ([]MikrotikItem, error)
+	// TODO Add Cancel Context
+	SendRequest(method crudMethod, url *URL, data map[string]string) ([]MikrotikItem, error)
+	WithContext(ctx context.Context) context.Context
 }
 
 type crudMethod int
@@ -26,6 +28,7 @@ type crudMethod int
 const (
 	crudRead crudMethod = iota
 	crudPost
+	crudMonitor
 )
 
 type Config struct {
@@ -135,6 +138,17 @@ func NewClient(ctx context.Context, conf *Config) (Client, error) {
 	}
 
 	return rest, nil
+}
+
+type ctxKey struct{}
+
+func Ctx(ctx context.Context) Client {
+	if c, ok := ctx.Value(ctxKey{}).(*RestClient); ok {
+		return c
+	} else if c, ok := ctx.Value(ctxKey{}).(*ApiClient); ok {
+		return c
+	}
+	return nil
 }
 
 type URL struct {

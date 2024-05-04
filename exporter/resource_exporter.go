@@ -3,43 +3,68 @@ package exporter
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
-	"strconv"
-	"time"
 )
 
 type ResourceExporter struct {
-	counterVec *prom.CounterVec
-	schema     ResSchema
-	client     mikrotik.Client
+	ctx         context.Context
+	schema      *ResourceSchema
+	promMertics map[string]any
+	globalVars  map[string]string
 }
 
-func NewResourceExporter(schema ResSchema, client mikrotik.Client) *ResourceExporter {
-	labels := make([]string, 0, len(schema.LabelNameFields))
-	for key, _ := range schema.LabelNameFields {
-		labels = append(labels, key)
+func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.Registry) *ResourceExporter {
+	var exporter = &ResourceExporter{
+		ctx:         ctx,
+		schema:      schema,
+		promMertics: make(map[string]any),
 	}
-	counter := promauto.NewCounterVec(prom.CounterOpts{
-		Namespace:   "",
-		Subsystem:   "",
-		Name:        schema.PromMetricName,
-		Help:        schema.PromMetricHelp,
-		ConstLabels: schema.PromConstLabels,
-	}, labels)
 
-	return &ResourceExporter{
-		counterVec: counter,
-		client:     client,
-		schema:     schema,
+	for _, metric := range schema.Metrics {
+		switch metric.PromMetricType {
+		case CounterVec:
+			counter := promauto.NewCounterVec(prom.CounterOpts{
+				Namespace:   schema.PromNamespace,
+				Subsystem:   schema.PromSubsystem,
+				Name:        metric.PromMetricName,
+				Help:        metric.PromMetricHelp,
+				ConstLabels: metric.constLabels,
+			}, metric.GetLabels())
+
+			reg.MustRegister(counter)
+			exporter.promMertics[metric.PromMetricName] = counter
+
+		case GaugeVec:
+			gauge := promauto.NewGaugeVec(prom.GaugeOpts{
+				Namespace:   schema.PromNamespace,
+				Subsystem:   schema.PromSubsystem,
+				Name:        metric.PromMetricName,
+				Help:        metric.PromMetricHelp,
+				ConstLabels: metric.constLabels,
+			}, metric.GetLabels())
+
+			reg.MustRegister(gauge)
+			exporter.promMertics[metric.PromMetricName] = gauge
+		}
+
+		// FIXME
+		// spew.Dump(metric.GetLabels())
 	}
+
+	return exporter
 }
 
 func (r *ResourceExporter) ExportMetrics(ctx context.Context) error {
-	logger := zerolog.Ctx(ctx)
-	timer := time.NewTicker(time.Second * 30)
+	// FIXME
+	timer := time.NewTicker(time.Second * 5)
+
 	for done := false; !done; {
 		select {
 		case <-timer.C:
@@ -47,10 +72,11 @@ func (r *ResourceExporter) ExportMetrics(ctx context.Context) error {
 				return fmt.Errorf("exporting metrics: %w", err)
 			}
 		case <-ctx.Done():
-			logger.Debug().Msg("terminating exporter")
+			zerolog.Ctx(ctx).Debug().Msg("terminating exporter")
 			done = true
 		}
 	}
+
 	return nil
 }
 
@@ -58,51 +84,96 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("exporting resources")
 
-	resources, err := r.ReadResource()
+	mikrotikResource, err := r.ReadResource()
 	if err != nil {
 		return fmt.Errorf("reading resource: %w", err)
 	}
 
-	for _, instance := range resources {
-		labels, err := extractLabelsFromResource(instance, r.schema.LabelNameFields)
-		if err != nil {
-			logger.Warn().Err(err).Msg("extracting labels from resource")
-			continue
+	// Zeroize
+	for _, metric := range r.schema.Metrics {
+		if metric.PromResetGaugeEveryTime {
+			if g, ok := r.promMertics[metric.PromMetricName].(*prom.GaugeVec); ok {
+				g.Reset()
+			}
 		}
-		metricValue, err := extractValueFromResource(instance, r.schema.MetricValueField)
-		if err != nil {
-			logger.Warn().Err(err).Msg("extracting value from resource")
-			continue
+	}
+
+	for _, instanceJSON := range mikrotikResource {
+		// collect metrics & labels
+		for _, metric := range r.schema.Metrics {
+			var res any
+			var err error
+			// Parse value
+			inVal := instanceJSON[metric.MtFieldName]
+			switch strings.ToLower(metric.MtFieldType) {
+			case Int:
+				res, err = strconv.ParseFloat(inVal, 64)
+				if err != nil {
+					logger.Warn().Fields(map[string]any{metric.MtFieldName: inVal}).Err(err).Msg("extracting value from resource")
+					continue
+				}
+			case Time:
+				d, err := mikrotik.ParseDuration(inVal)
+				if err != nil {
+					logger.Warn().Fields(map[string]any{metric.MtFieldName: inVal}).Err(err).Msg("extracting value from resource")
+					continue
+				}
+				res = d.Seconds()
+			case Const:
+				res = float64(1.0)
+			case Bool:
+				res = mikrotik.BoolFromMikrotikJSONToFloat(inVal)
+			}
+
+			var labels = make(prom.Labels, len(metric.labels))
+			for labelName, mtFieldName := range metric.labels {
+				labels[labelName] = instanceJSON[mtFieldName]
+				if v, ok := r.globalVars[mtFieldName]; ok {
+					labels[labelName] = v
+				}
+			}
+
+			switch m := r.promMertics[metric.PromMetricName].(type) {
+			case *prom.CounterVec:
+				if metric.PromMetricOperation == OperAdd {
+					m.With(labels).Add(res.(float64))
+				} else {
+					m.With(labels).Inc()
+				}
+			case *prom.GaugeVec:
+				switch metric.PromMetricOperation {
+				case OperInc:
+					m.With(labels).Inc()
+				case OperDec:
+					m.With(labels).Dec()
+				case OperAdd:
+					m.With(labels).Add(res.(float64))
+				case OperSub:
+					m.With(labels).Sub(res.(float64))
+				case OperCurrTime:
+					m.With(labels).SetToCurrentTime()
+				case OperSet:
+					fallthrough
+				default:
+					m.With(labels).Set(res.(float64))
+				}
+			}
 		}
-		r.counterVec.With(labels).Add(metricValue)
 	}
 	return err
 }
 
-func extractValueFromResource(instance mikrotik.MikrotikItem, field string) (float64, error) {
-	value := instance[field]
-	return strconv.ParseFloat(value, 64)
-}
-
 func (r *ResourceExporter) ReadResource() ([]mikrotik.MikrotikItem, error) {
 	if len(r.schema.ResourceFilter) == 0 {
-		return mikrotik.Read(r.schema.ResourcePath, r.client)
+		return mikrotik.Read(r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
 	}
 	var filter []string
 	for k, v := range r.schema.ResourceFilter {
 		filter = append(filter, k+"="+v)
 	}
-	return mikrotik.ReadFiltered(filter, r.schema.ResourcePath, r.client)
+	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
 }
 
-func extractLabelsFromResource(instance mikrotik.MikrotikItem, labelNamesFields map[string]string) (labels prom.Labels, err error) {
-	labels = make(prom.Labels, len(labelNamesFields))
-	for labelName, labelField := range labelNamesFields {
-		labelValue, ok := instance[labelField]
-		if !ok {
-			return nil, fmt.Errorf("unable to find:%s in resrouce: %v", labelField, instance)
-		}
-		labels[labelName] = labelValue
-	}
-	return labels, nil
+func (r *ResourceExporter) SetGlobalVars(m map[string]string) {
+	r.globalVars = m
 }

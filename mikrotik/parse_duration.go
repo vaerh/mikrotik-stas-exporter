@@ -27,7 +27,8 @@ func ParseDuration(s string) (time.Duration, error) {
 		return 0, nil
 	}
 	if s == "" {
-		return 0, fmt.Errorf(`time: invalid duration "%v"`, orig)
+		// return 0, fmt.Errorf(`time: invalid duration "%v"`, orig)
+		return 0, nil
 	}
 	// hh:mm:ss format
 	if ss := strings.Split(s, ":"); len(ss) == 3 {
