@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -12,15 +13,24 @@ import (
 )
 
 func init() {
-	ComplexMetrics.AddMetric(&InterfaceStatus{path: "/interface/ethernet"})
+	ComplexMetrics.AddMetric(&InterfaceStatus{path: "/interface/ethernet", collectionInterval: DefaultMetricsCollectionInterval})
 }
 
 type InterfaceStatus struct {
-	path    string
-	duplex  *prometheus.GaugeVec
-	rate    *prometheus.GaugeVec
-	sfpTemp *prometheus.GaugeVec
-	status  *prometheus.GaugeVec
+	path               string
+	duplex             *prometheus.GaugeVec
+	rate               *prometheus.GaugeVec
+	sfpTemp            *prometheus.GaugeVec
+	status             *prometheus.GaugeVec
+	collectionInterval time.Duration
+}
+
+func (iface *InterfaceStatus) GetCollectInterval() time.Duration {
+	return iface.collectionInterval
+}
+
+func (iface *InterfaceStatus) SetCollectInterval(t time.Duration) {
+	iface.collectionInterval = t
 }
 
 // Register implements Metric.
@@ -64,7 +74,7 @@ func (iface *InterfaceStatus) Register(ctx context.Context, constLabels promethe
 
 // Collect implements Metric.
 func (iface *InterfaceStatus) StartCollecting(ctx context.Context) error {
-	return startCollecting(ctx, iface.collect)
+	return startCollecting(ctx, iface, iface.collect)
 }
 
 func (is *InterfaceStatus) collect(ctx context.Context) error {

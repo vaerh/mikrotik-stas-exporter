@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -12,15 +13,24 @@ import (
 )
 
 func init() {
-	ComplexMetrics.AddMetric(&PoEStatus{path: "/interface/ethernet/poe"})
+	ComplexMetrics.AddMetric(&PoEStatus{path: "/interface/ethernet/poe", collectionInterval: DefaultMetricsCollectionInterval})
 }
 
 type PoEStatus struct {
-	path          string
-	status        *prometheus.GaugeVec
-	outputCurrent *prometheus.GaugeVec
-	outputPower   *prometheus.GaugeVec
-	outputVoltage *prometheus.GaugeVec
+	path               string
+	status             *prometheus.GaugeVec
+	outputCurrent      *prometheus.GaugeVec
+	outputPower        *prometheus.GaugeVec
+	outputVoltage      *prometheus.GaugeVec
+	collectionInterval time.Duration
+}
+
+func (poe *PoEStatus) GetCollectInterval() time.Duration {
+	return poe.collectionInterval
+}
+
+func (poe *PoEStatus) SetCollectInterval(t time.Duration) {
+	poe.collectionInterval = t
 }
 
 // Register implements Metric.
@@ -64,7 +74,7 @@ func (poe *PoEStatus) Register(ctx context.Context, constLabels prometheus.Label
 
 // Collect implements Metric.
 func (poe *PoEStatus) StartCollecting(ctx context.Context) error {
-	return startCollecting(ctx, poe.collect)
+	return startCollecting(ctx, poe, poe.collect)
 }
 
 func (poe *PoEStatus) collect(ctx context.Context) error {

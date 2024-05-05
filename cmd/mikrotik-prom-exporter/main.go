@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/urfave/cli/v2"
@@ -21,8 +22,6 @@ import (
 	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
-
-	_ "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 )
 
 var (
@@ -115,6 +114,24 @@ func main() {
 						},
 						Aliases: []string{"l"},
 					},
+					&cli.StringFlag{
+						Name:        "interval",
+						Usage:       "Positive `INTERVAL` of metrics collection https://pkg.go.dev/time#ParseDuration",
+						Value:       "30s",
+						DefaultText: "30s",
+						EnvVars:     []string{"INTERVAL"},
+						Action: func(ctx *cli.Context, v string) error {
+							t, err := time.ParseDuration(v)
+							if err != nil {
+								return fmt.Errorf("metrics collection interval parsing error, %v", err)
+							}
+							if t < 5*time.Second {
+								return fmt.Errorf("metrics collection interval '%v' must be greater than or equal to 5 seconds", v)
+							}
+							return nil
+						},
+						Aliases: []string{"i"},
+					},
 				},
 				SkipFlagParsing:        false,
 				HideHelp:               false,
@@ -186,7 +203,9 @@ func export(cliCtx *cli.Context) error {
 	wg := sync.WaitGroup{}
 	// sem := semaphore.NewWeighted(maxConcurrentWorkers)
 
-	for _, m := range complexmetrics.ComplexMetrics.Metrics {
+	metricsCollectionInterval, _ := time.ParseDuration(cliCtx.String("interval"))
+
+	for _, m := range complexmetrics.ComplexMetrics.Get() {
 		wg.Add(1)
 
 		workerReg := prometheus.NewRegistry()
@@ -196,6 +215,7 @@ func export(cliCtx *cli.Context) error {
 			defer globalReg.Unregister(workerReg)
 
 			m.Register(ctx, prometheus.Labels{}, workerReg)
+			m.SetCollectInterval(metricsCollectionInterval)
 
 			if err := m.StartCollecting(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
@@ -216,6 +236,7 @@ func export(cliCtx *cli.Context) error {
 
 			rExporter := exporter.NewResourceExporter(ctx, &s, workerReg)
 			rExporter.SetGlobalVars(globalVars)
+			rExporter.SetCollectInterval(metricsCollectionInterval)
 
 			if err := rExporter.ExportMetrics(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
