@@ -84,11 +84,6 @@ func main() {
 				Description:  "",
 				Category:     "",
 				BashComplete: nil,
-				Before: func(c *cli.Context) error {
-
-					c.Context = logger.WithContext(c.Context)
-					return nil
-				},
 				After:        nil,
 				Action:       cli.ActionFunc(export),
 				OnUsageError: nil,
@@ -131,6 +126,35 @@ func main() {
 							return nil
 						},
 						Aliases: []string{"i"},
+					},
+					&cli.StringFlag{
+						Name:        "resources",
+						Usage:       "`DIR`ECTORY with metrics schemas",
+						Value:       "resources",
+						DefaultText: "resources",
+						EnvVars:     []string{"RESOURCES_DIR"},
+						Action: func(ctx *cli.Context, v string) error {
+							_, err := os.Stat(v)
+							if err != nil {
+								return fmt.Errorf("error checking directory with metrics schemas, %v", err)
+							}
+							return nil
+						},
+					},
+					&cli.StringFlag{
+						Name:        "loglevel",
+						Usage:       "Log `LEVEL`",
+						Value:       "warn",
+						DefaultText: "warn",
+						EnvVars:     []string{"LOG_LEVEL"},
+						Action: func(ctx *cli.Context, v string) error {
+							lvl, err := zerolog.ParseLevel(v)
+							if err != nil {
+								return fmt.Errorf("error parsing log level, %v", err)
+							}
+							ctx.Context = logger.Level(lvl).WithContext(ctx.Context)
+							return nil
+						},
 					},
 				},
 				SkipFlagParsing:        false,
