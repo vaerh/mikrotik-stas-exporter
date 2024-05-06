@@ -12,6 +12,9 @@ import (
 func LoadResSchemas(ctx context.Context, basedir string) ([]ResourceSchema, error) {
 	var files []string
 	err := filepath.Walk(basedir, func(path string, f os.FileInfo, err error) error {
+		if f == nil {
+			return nil
+		}
 		if !f.IsDir() {
 			if strings.HasSuffix(f.Name(), ".yaml") {
 				absolutefilepath, err := filepath.Abs(path)
