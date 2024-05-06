@@ -13,7 +13,7 @@ func Monitor(resourcePath string, c Client, data map[string]string) ([]MikrotikI
 		return nil, errEmptyPath
 	}
 
-	return c.SendRequest(crudMonitor, &URL{Path: resourcePath + "/monitor"}, data)
+	return c.SendRequest(CrudMonitor, &URL{Path: resourcePath + "/monitor"}, data)
 }
 
 func Read(resourcePath string, c Client, data map[string]string) ([]MikrotikItem, error) {
@@ -21,7 +21,7 @@ func Read(resourcePath string, c Client, data map[string]string) ([]MikrotikItem
 		return nil, errEmptyPath
 	}
 
-	return c.SendRequest(crudRead, &URL{Path: resourcePath}, data)
+	return c.SendRequest(CrudRead, &URL{Path: resourcePath}, data)
 }
 
 func ReadFiltered(filter []string, resourcePath string, c Client, data map[string]string) ([]MikrotikItem, error) {
@@ -37,5 +37,5 @@ func ReadFiltered(filter []string, resourcePath string, c Client, data map[strin
 			filter[i] = "?=" + s
 		}
 	}
-	return c.SendRequest(crudRead, &URL{Path: resourcePath, Query: filter}, data)
+	return c.SendRequest(CrudRead, &URL{Path: resourcePath, Query: filter}, data)
 }
