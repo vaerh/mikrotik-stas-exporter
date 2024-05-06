@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
@@ -31,7 +32,7 @@ func (r *ResourceExporter) SetCollectInterval(t time.Duration) {
 	r.collectionInterval = t
 }
 
-func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.Registry) *ResourceExporter {
+func NewResourceExporter(ctx context.Context, schema *ResourceSchema, constLabels prometheus.Labels, reg *prom.Registry) *ResourceExporter {
 	var exporter = &ResourceExporter{
 		ctx:                ctx,
 		schema:             schema,
@@ -40,6 +41,14 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 	}
 
 	for _, metric := range schema.Metrics {
+		var cl = make(prom.Labels, len(metric.constLabels)+len(constLabels))
+		for k, v := range metric.constLabels {
+			cl[k] = v
+		}
+		for k, v := range constLabels {
+			cl[k] = v
+		}
+
 		switch metric.PromMetricType {
 		case CounterVec:
 			counter := promauto.NewCounterVec(prom.CounterOpts{
@@ -47,7 +56,7 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 				Subsystem:   schema.PromSubsystem,
 				Name:        metric.PromMetricName,
 				Help:        metric.PromMetricHelp,
-				ConstLabels: metric.constLabels,
+				ConstLabels: cl,
 			}, metric.GetLabels())
 
 			reg.MustRegister(counter)
@@ -59,7 +68,7 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 				Subsystem:   schema.PromSubsystem,
 				Name:        metric.PromMetricName,
 				Help:        metric.PromMetricHelp,
-				ConstLabels: metric.constLabels,
+				ConstLabels: cl,
 			}, metric.GetLabels())
 
 			reg.MustRegister(gauge)

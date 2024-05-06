@@ -31,9 +31,9 @@ var (
 
 var (
 	flagHostURL = &cli.StringFlag{
-		Name:     "host_url",
+		Name:     "hosturl",
 		Usage:    "`URL` of the router in format",
-		EnvVars:  []string{"HOST_URL"},
+		EnvVars:  []string{"HOSTURL"},
 		Required: true,
 		Aliases:  []string{"r"},
 	}
@@ -188,15 +188,15 @@ func export(cliCtx *cli.Context) error {
 		Password:      flagPassword.Get(cliCtx),
 	}
 
-	globalVars := map[string]string{
-		"HOSTURL":  flagHostURL.Get(cliCtx),
-		"USERNAME": flagUsername.Get(cliCtx),
-		"ALIAS":    flagRouterAlias.Get(cliCtx),
-	}
-
-	_, err = url.Parse(conf.HostURL)
+	u, err := url.Parse(flagHostURL.Get(cliCtx))
 	if err != nil {
 		log.Fatal().Err(err).Msg("parsing router host url")
+	}
+
+	globalVars := map[string]string{
+		"HOSTURL":  u.Host,
+		"USERNAME": flagUsername.Get(cliCtx),
+		"ALIAS":    flagRouterAlias.Get(cliCtx),
 	}
 
 	ctx, cancelFn := context.WithCancel(ctx)
@@ -204,6 +204,15 @@ func export(cliCtx *cli.Context) error {
 	client, err := mikrotik.NewClient(ctx, conf)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("creating mikrotik client")
+	}
+
+	res, err := client.SendRequest(mikrotik.CrudRead, &mikrotik.URL{Path: "/system/identity"}, nil)
+	if err != nil {
+		logger.Err(err).Msg("read router identity")
+	} else {
+		if len(res) > 0 {
+			globalVars["ROUTER_ID"] = res[0]["name"]
+		}
 	}
 
 	// start http service ASAP to be sure it actually is online
@@ -238,7 +247,11 @@ func export(cliCtx *cli.Context) error {
 		go func() {
 			defer globalReg.Unregister(workerReg)
 
-			m.Register(ctx, prometheus.Labels{}, workerReg)
+			m.Register(ctx, prometheus.Labels{
+				"routerboard_address": globalVars["HOSTURL"],
+				"routerboard_id":      globalVars["ROUTER_ID"],
+				"routerboard_alias":   globalVars["ALIAS"]},
+				workerReg)
 			m.SetCollectInterval(metricsCollectionInterval)
 
 			if err := m.StartCollecting(ctx); err != nil {
@@ -258,7 +271,11 @@ func export(cliCtx *cli.Context) error {
 		go func() {
 			defer globalReg.Unregister(workerReg)
 
-			rExporter := exporter.NewResourceExporter(ctx, &s, workerReg)
+			rExporter := exporter.NewResourceExporter(ctx, &s, prometheus.Labels{
+				"routerboard_address": globalVars["HOSTURL"],
+				"routerboard_id":      globalVars["ROUTER_ID"],
+				"routerboard_alias":   globalVars["ALIAS"]},
+				workerReg)
 			rExporter.SetGlobalVars(globalVars)
 			rExporter.SetCollectInterval(metricsCollectionInterval)
 

@@ -3,8 +3,6 @@ subsystem: ip
 resource_path: /ip/dhcp-server/lease
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   server: $server
 
 metrics:

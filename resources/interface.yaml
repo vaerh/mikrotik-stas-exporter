@@ -3,8 +3,6 @@ subsystem: interface
 resource_path: /interface
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   name: $name
 
 metrics:

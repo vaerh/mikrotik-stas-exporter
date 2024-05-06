@@ -3,8 +3,6 @@ subsystem: ip
 resource_path: /ip/firewall/filter
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
 
 metrics:
   - name: firewall_filter_total

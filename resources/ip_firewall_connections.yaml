@@ -3,8 +3,6 @@ subsystem: ip
 resource_path: /ip/firewall/connection
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
 
 metrics:
   - name: connections_total
