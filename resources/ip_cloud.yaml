@@ -1,10 +1,8 @@
 namespace: mikrotik
-subsystem: 
+subsystem:
 resource_path: /ip/cloud
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
 
 metrics:
   - name: public_ip_address_info
@@ -14,5 +12,3 @@ metrics:
     labels:
       public_address: $public-address
       dns_name: $dns-name
-
-    

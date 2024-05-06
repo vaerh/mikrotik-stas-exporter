@@ -3,8 +3,6 @@ subsystem: ip
 resource_path: /ip/route
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
 
 metrics:
   - name: routes_connect_total

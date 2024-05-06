@@ -6,8 +6,6 @@ global_labels:
   architecture_name: $architecture-name
   board_name: $board-name
   cpu: $cpu
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   version: $version
 
 metrics:

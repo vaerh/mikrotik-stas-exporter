@@ -3,8 +3,6 @@ subsystem: ip
 resource_path: /ip/pool/used
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   pool: $pool
 
 metrics:

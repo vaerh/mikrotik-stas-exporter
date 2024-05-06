@@ -3,8 +3,6 @@ subsystem: users
 resource_path: /user/active
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   address: $address
   group: $group
   name: $name

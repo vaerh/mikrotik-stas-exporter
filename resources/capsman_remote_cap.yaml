@@ -3,8 +3,6 @@ subsystem: capsman
 resource_path: /caps-man/remote-cap
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
   version: $version
   base_mac: $base-mac
   board: $board
