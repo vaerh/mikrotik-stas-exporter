@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/urfave/cli/v2"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/urfave/cli/v2"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rs/zerolog/log"
@@ -19,8 +22,6 @@ import (
 	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
-
-	_ "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 )
 
 var (
@@ -28,13 +29,46 @@ var (
 	// maxConcurrentWorkers = 10
 )
 
-const (
-	hostUrlEnvVar      = "HOST_URL"
-	hostUrlFlagName    = "host_url"
-	usernameFlagName   = "username"
-	usernameEnvVarName = "USERNAME"
-	passwordFlagName   = "password"
-	passwordEnvVarName = "PASSWORD"
+var (
+	flagHostURL = &cli.StringFlag{
+		Name:     "host_url",
+		Usage:    "`URL` of the router in format",
+		EnvVars:  []string{"HOST_URL"},
+		Required: true,
+		Aliases:  []string{"r"},
+	}
+	flagUsername = &cli.StringFlag{
+		Name:     "username",
+		Usage:    "`USERNAME` for router authentication",
+		EnvVars:  []string{"USERNAME"},
+		Required: true,
+		Aliases:  []string{"u"},
+	}
+	flagPassword = &cli.StringFlag{
+		Name:     "password",
+		Usage:    "`PASSWORD` for router authentication",
+		EnvVars:  []string{"PASSWORD"},
+		Required: true,
+		Aliases:  []string{"p"},
+	}
+	flagInsecure = &cli.BoolFlag{
+		Name:    "insecure", // curl -k/--insecure
+		Usage:   "don't check the server certificate",
+		EnvVars: []string{"INSECURE"},
+		Aliases: []string{"k"},
+	}
+	flagCaCert = &cli.StringFlag{
+		Name:    "cacert", // curl --cacert
+		Usage:   "certificate `FILE` to verify the router",
+		EnvVars: []string{"CA_CERTIFICATE"},
+	}
+	flagRouterAlias = &cli.StringFlag{
+		Name:        "alias",
+		Usage:       "router `ALIAS` to display in metrics labels",
+		EnvVars:     []string{"ROUTER_ALIAS"},
+		Value:       "Sample-Router",
+		DefaultText: "Sample-Router",
+	}
 )
 
 func main() {
@@ -60,26 +94,43 @@ func main() {
 				OnUsageError: nil,
 				Subcommands:  nil,
 				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:     hostUrlFlagName,
-						Usage:    "url of the router in format",
-						EnvVars:  []string{hostUrlEnvVar},
-						Required: true,
-						Aliases:  []string{"r"},
+					flagHostURL,
+					flagUsername,
+					flagPassword,
+					flagInsecure,
+					flagCaCert,
+					flagRouterAlias,
+					&cli.IntFlag{
+						Name:        "listen",
+						Usage:       "mikrotik exporter `PORT`",
+						Value:       9100,
+						DefaultText: "9100",
+						EnvVars:     []string{"LISTEN_PORT"},
+						Action: func(ctx *cli.Context, v int) error {
+							if v < 0 || v > 65535 {
+								return fmt.Errorf("flag port value %v out of range[0-65535]", v)
+							}
+							return nil
+						},
+						Aliases: []string{"l"},
 					},
 					&cli.StringFlag{
-						Name:     usernameFlagName,
-						Usage:    "username for router authentication",
-						EnvVars:  []string{usernameEnvVarName},
-						Required: true,
-						Aliases:  []string{"u"},
-					},
-					&cli.StringFlag{
-						Name:     passwordFlagName,
-						Usage:    "password for router authentication",
-						EnvVars:  []string{passwordEnvVarName},
-						Required: true,
-						Aliases:  []string{"p"},
+						Name:        "interval",
+						Usage:       "Positive `INTERVAL` of metrics collection https://pkg.go.dev/time#ParseDuration",
+						Value:       "30s",
+						DefaultText: "30s",
+						EnvVars:     []string{"INTERVAL"},
+						Action: func(ctx *cli.Context, v string) error {
+							t, err := time.ParseDuration(v)
+							if err != nil {
+								return fmt.Errorf("metrics collection interval parsing error, %v", err)
+							}
+							if t < 5*time.Second {
+								return fmt.Errorf("metrics collection interval '%v' must be greater than or equal to 5 seconds", v)
+							}
+							return nil
+						},
+						Aliases: []string{"i"},
 					},
 				},
 				SkipFlagParsing:        false,
@@ -105,13 +156,18 @@ func export(cliCtx *cli.Context) error {
 		logger.Fatal().Err(err).Msg("")
 	}
 
-	conf := mikrotikConfigFromFlags(cliCtx)
+	conf := &mikrotik.Config{
+		Insecure:      flagInsecure.Get(cliCtx),
+		CaCertificate: flagCaCert.Get(cliCtx),
+		HostURL:       flagHostURL.Get(cliCtx),
+		Username:      flagUsername.Get(cliCtx),
+		Password:      flagPassword.Get(cliCtx),
+	}
 
 	globalVars := map[string]string{
-		"HOSTURL":  conf.HostURL,
-		"USERNAME": conf.Username,
-		// FIXME
-		"ALIAS": "Sample-Router",
+		"HOSTURL":  flagHostURL.Get(cliCtx),
+		"USERNAME": flagUsername.Get(cliCtx),
+		"ALIAS":    flagRouterAlias.Get(cliCtx),
 	}
 
 	_, err = url.Parse(conf.HostURL)
@@ -132,7 +188,7 @@ func export(cliCtx *cli.Context) error {
 	http.Handle("/metrics", promhttp.HandlerFor(globalReg, promhttp.HandlerOpts{}))
 
 	go func() {
-		if err = http.ListenAndServe(":8080", nil); err != nil {
+		if err = http.ListenAndServe(fmt.Sprintf(":%d", cliCtx.Int("listen")), nil); err != nil {
 			if !errors.Is(err, http.ErrServerClosed) {
 				logger.Fatal().Err(err).Msg("listening and starting http server for metrics")
 			}
@@ -147,7 +203,9 @@ func export(cliCtx *cli.Context) error {
 	wg := sync.WaitGroup{}
 	// sem := semaphore.NewWeighted(maxConcurrentWorkers)
 
-	for _, m := range complexmetrics.ComplexMetrics.Metrics {
+	metricsCollectionInterval, _ := time.ParseDuration(cliCtx.String("interval"))
+
+	for _, m := range complexmetrics.ComplexMetrics.Get() {
 		wg.Add(1)
 
 		workerReg := prometheus.NewRegistry()
@@ -157,6 +215,7 @@ func export(cliCtx *cli.Context) error {
 			defer globalReg.Unregister(workerReg)
 
 			m.Register(ctx, prometheus.Labels{}, workerReg)
+			m.SetCollectInterval(metricsCollectionInterval)
 
 			if err := m.StartCollecting(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
@@ -177,6 +236,7 @@ func export(cliCtx *cli.Context) error {
 
 			rExporter := exporter.NewResourceExporter(ctx, &s, workerReg)
 			rExporter.SetGlobalVars(globalVars)
+			rExporter.SetCollectInterval(metricsCollectionInterval)
 
 			if err := rExporter.ExportMetrics(ctx); err != nil {
 				logger.Err(err).Msg("exporting metrics")
@@ -200,13 +260,4 @@ func export(cliCtx *cli.Context) error {
 	log.Printf("waiting for exporters")
 	wg.Wait()
 	return nil
-}
-
-func mikrotikConfigFromFlags(cliCtx *cli.Context) *mikrotik.Config {
-	return &mikrotik.Config{
-		Insecure: true,
-		HostURL:  cliCtx.String(hostUrlFlagName),
-		Username: cliCtx.String(usernameFlagName),
-		Password: cliCtx.String(passwordFlagName),
-	}
 }

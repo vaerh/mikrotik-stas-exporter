@@ -13,18 +13,30 @@ import (
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
 )
 
+const DefaultMetricsCollectionInterval = 30 * time.Second
+
 type ResourceExporter struct {
-	ctx         context.Context
-	schema      *ResourceSchema
-	promMertics map[string]any
-	globalVars  map[string]string
+	ctx                context.Context
+	schema             *ResourceSchema
+	promMertics        map[string]any
+	globalVars         map[string]string
+	collectionInterval time.Duration
+}
+
+func (r *ResourceExporter) GetCollectInterval() time.Duration {
+	return r.collectionInterval
+}
+
+func (r *ResourceExporter) SetCollectInterval(t time.Duration) {
+	r.collectionInterval = t
 }
 
 func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.Registry) *ResourceExporter {
 	var exporter = &ResourceExporter{
-		ctx:         ctx,
-		schema:      schema,
-		promMertics: make(map[string]any),
+		ctx:                ctx,
+		schema:             schema,
+		promMertics:        make(map[string]any),
+		collectionInterval: DefaultMetricsCollectionInterval,
 	}
 
 	for _, metric := range schema.Metrics {
@@ -62,11 +74,17 @@ func NewResourceExporter(ctx context.Context, schema *ResourceSchema, reg *prom.
 }
 
 func (r *ResourceExporter) ExportMetrics(ctx context.Context) error {
-	// FIXME
-	timer := time.NewTicker(time.Second * 5)
+	timer := time.NewTicker(r.collectionInterval)
+
+	firstRun := make(chan struct{}, 1)
+	firstRun <- struct{}{}
 
 	for done := false; !done; {
 		select {
+		case <-firstRun:
+			if err := r.exportMetrics(ctx); err != nil {
+				return fmt.Errorf("exporting metrics: %w", err)
+			}
 		case <-timer.C:
 			if err := r.exportMetrics(ctx); err != nil {
 				return fmt.Errorf("exporting metrics: %w", err)
