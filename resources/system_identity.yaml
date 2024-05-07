@@ -9,5 +9,3 @@ metrics:
     field_type: const
     labels:
       name: $name
-      routerboard_address: $HOSTNAME
-      routerboard_name: $ALIAS

@@ -18,10 +18,10 @@ type ApiClient struct {
 }
 
 var (
-	apiMethodName = map[crudMethod]string{
-		crudRead:    "/print",
-		crudPost:    "/set",
-		crudMonitor: "/monitor",
+	apiMethodName = map[CrudMethod]string{
+		CrudRead:    "/print",
+		CrudPost:    "/set",
+		CrudMonitor: "/monitor",
 	}
 )
 
@@ -29,7 +29,7 @@ func (c *ApiClient) GetTransport() TransportType {
 	return c.Transport
 }
 
-func (c *ApiClient) SendRequest(method crudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
+func (c *ApiClient) SendRequest(method CrudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
 
 	// https://help.mikrotik.com/docs/display/ROS/API
 	// /interface/vlan/print + '?.id=*39' + '?type=vlan'

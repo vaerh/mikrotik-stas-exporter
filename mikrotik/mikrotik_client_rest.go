@@ -26,10 +26,10 @@ type errorResponse struct {
 }
 
 var (
-	restMethodName = map[crudMethod]string{
-		crudRead:    "GET",
-		crudPost:    "POST",
-		crudMonitor: "POST",
+	restMethodName = map[CrudMethod]string{
+		CrudRead:    "GET",
+		CrudPost:    "POST",
+		CrudMonitor: "POST",
 	}
 )
 
@@ -37,12 +37,12 @@ func (c *RestClient) GetTransport() TransportType {
 	return c.Transport
 }
 
-func (c *RestClient) SendRequest(method crudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
+func (c *RestClient) SendRequest(method CrudMethod, url *URL, data map[string]string) ([]MikrotikItem, error) {
 	var buf io.Reader
 	var bb string
 
 	if data != nil {
-		method = crudPost
+		method = CrudPost
 
 		b, err := json.Marshal(data)
 		if err != nil {

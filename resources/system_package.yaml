@@ -3,8 +3,6 @@ subsystem: system
 resource_path: /system/package
 
 global_labels:
-  routerboard_address: $HOSTNAME
-  routerboard_name: $ALIAS
 
 metrics:
   - name: installed_packages_info
