@@ -4,7 +4,7 @@ go 1.22.1
 
 require (
 	github.com/go-routeros/routeros v0.0.0-20210123142807-2a44d57c6730
-	github.com/prometheus/client_golang v1.19.0
+	github.com/prometheus/client_golang v1.19.1
 	github.com/rs/zerolog v1.32.0
 	github.com/urfave/cli/v2 v2.27.2
 	gopkg.in/yaml.v2 v2.4.0
@@ -24,5 +24,5 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20240312152122-5f08fbb34913 // indirect
 	golang.org/x/sys v0.18.0 // indirect
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 )
