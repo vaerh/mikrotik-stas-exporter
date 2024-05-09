@@ -1,5 +1,4 @@
-.vscode/
-.idea
-
-.bin
-mikrotik-prom-exporter
+/.vscode
+/.idea
+/.bin/*
+/bin/*
