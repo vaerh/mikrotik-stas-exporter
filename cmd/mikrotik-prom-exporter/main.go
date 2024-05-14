@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/urfave/cli/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,14 +12,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/rs/zerolog/log"
-
-	"github.com/rs/zerolog"
-	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 	"github.com/vaerh/mikrotik-prom-exporter/exporter"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"github.com/urfave/cli/v2"
+	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
 )
 
 var (
