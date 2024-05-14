@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/urfave/cli/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,10 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/urfave/cli/v2"
-
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog/log"
 
 	"github.com/rs/zerolog"
@@ -242,7 +241,7 @@ func export(cliCtx *cli.Context) error {
 		wg.Add(1)
 
 		workerReg := prometheus.NewRegistry()
-		globalReg.Register(workerReg)
+		globalReg.MustRegister(workerReg)
 
 		go func() {
 			defer globalReg.Unregister(workerReg)
@@ -266,7 +265,7 @@ func export(cliCtx *cli.Context) error {
 		wg.Add(1)
 
 		workerReg := prometheus.NewRegistry()
-		globalReg.Register(workerReg)
+		globalReg.MustRegister(workerReg)
 
 		go func() {
 			defer globalReg.Unregister(workerReg)
