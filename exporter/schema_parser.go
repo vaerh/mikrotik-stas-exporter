@@ -5,7 +5,7 @@ import (
 	"os"
 
 	prom "github.com/prometheus/client_golang/prometheus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 //TODO It would be nice to have a validator for the scheme....
