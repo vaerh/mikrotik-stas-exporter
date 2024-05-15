@@ -1,117 +1,82 @@
-package exporter
+package metrics
 
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	prom "github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/rs/zerolog"
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
 )
 
-const DefaultMetricsCollectionInterval = 30 * time.Second
-
 type ResourceExporter struct {
-	ctx                context.Context
-	schema             *ResourceSchema
-	promMertics        map[string]any
-	globalVars         map[string]string
-	collectionInterval time.Duration
+	*anyMetric
+	schema      *ResourceSchema
+	promMetrics map[string]any
+	globalVars  map[string]string
+	labels      map[string]string
+	reg         *prom.Registry
 }
 
-func (r *ResourceExporter) GetCollectInterval() time.Duration {
-	return r.collectionInterval
-}
+var _ Metric = (*ResourceExporter)(nil)
 
-func (r *ResourceExporter) SetCollectInterval(t time.Duration) {
-	r.collectionInterval = t
-}
-
-func NewResourceExporter(ctx context.Context, schema *ResourceSchema, constLabels prometheus.Labels, reg *prom.Registry) *ResourceExporter {
+func NewResourceExporter(schema *ResourceSchema) *ResourceExporter {
 	var exporter = &ResourceExporter{
-		ctx:                ctx,
-		schema:             schema,
-		promMertics:        make(map[string]any),
-		collectionInterval: DefaultMetricsCollectionInterval,
+		schema:      schema,
+		promMetrics: make(map[string]any),
 	}
+	return exporter
+}
 
-	for _, metric := range schema.Metrics {
-		var cl = make(prom.Labels, len(metric.constLabels)+len(constLabels))
+func (r *ResourceExporter) Register(reg prom.Registerer) {
+	for _, metric := range r.schema.Metrics {
+		var cl = make(prom.Labels, len(metric.constLabels)+len(r.labels))
 		for k, v := range metric.constLabels {
 			cl[k] = v
 		}
-		for k, v := range constLabels {
+		for k, v := range r.labels {
 			cl[k] = v
 		}
 
 		switch metric.PromMetricType {
 		case CounterVec:
 			counter := promauto.NewCounterVec(prom.CounterOpts{
-				Namespace:   schema.PromNamespace,
-				Subsystem:   schema.PromSubsystem,
+				Namespace:   r.schema.PromNamespace,
+				Subsystem:   r.schema.PromSubsystem,
 				Name:        metric.PromMetricName,
 				Help:        metric.PromMetricHelp,
 				ConstLabels: cl,
 			}, metric.GetLabels())
 
-			reg.MustRegister(counter)
-			exporter.promMertics[metric.PromMetricName] = counter
+			r.reg.MustRegister(counter)
+			r.promMetrics[metric.PromMetricName] = counter
 
 		case GaugeVec:
 			gauge := promauto.NewGaugeVec(prom.GaugeOpts{
-				Namespace:   schema.PromNamespace,
-				Subsystem:   schema.PromSubsystem,
+				Namespace:   r.schema.PromNamespace,
+				Subsystem:   r.schema.PromSubsystem,
 				Name:        metric.PromMetricName,
 				Help:        metric.PromMetricHelp,
 				ConstLabels: cl,
 			}, metric.GetLabels())
 
-			reg.MustRegister(gauge)
-			exporter.promMertics[metric.PromMetricName] = gauge
+			r.reg.MustRegister(gauge)
+			r.promMetrics[metric.PromMetricName] = gauge
 		}
 
 		// FIXME
 		// spew.Dump(metric.GetLabels())
 	}
-
-	return exporter
 }
 
-func (r *ResourceExporter) ExportMetrics(ctx context.Context) error {
-	timer := time.NewTicker(r.collectionInterval)
-
-	firstRun := make(chan struct{}, 1)
-	firstRun <- struct{}{}
-
-	for done := false; !done; {
-		select {
-		case <-firstRun:
-			if err := r.exportMetrics(ctx); err != nil {
-				return fmt.Errorf("exporting metrics: %w", err)
-			}
-		case <-timer.C:
-			if err := r.exportMetrics(ctx); err != nil {
-				return fmt.Errorf("exporting metrics: %w", err)
-			}
-		case <-ctx.Done():
-			zerolog.Ctx(ctx).Debug().Msg("terminating exporter")
-			done = true
-		}
-	}
-
-	return nil
-}
-
-func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
+func (r *ResourceExporter) Collect(ctx context.Context) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("exporting resources")
 
-	mikrotikResource, err := r.ReadResource()
+	mikrotikResource, err := r.ReadResource(ctx)
 	if err != nil {
 		return fmt.Errorf("reading resource: %w", err)
 	}
@@ -119,7 +84,7 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 	// Zeroize
 	for _, metric := range r.schema.Metrics {
 		if metric.PromResetGaugeEveryTime {
-			if g, ok := r.promMertics[metric.PromMetricName].(*prom.GaugeVec); ok {
+			if g, ok := r.promMetrics[metric.PromMetricName].(*prom.GaugeVec); ok {
 				g.Reset()
 			}
 		}
@@ -160,7 +125,7 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 				}
 			}
 
-			switch m := r.promMertics[metric.PromMetricName].(type) {
+			switch m := r.promMetrics[metric.PromMetricName].(type) {
 			case *prom.CounterVec:
 				if metric.PromMetricOperation == OperAdd {
 					m.With(labels).Add(res.(float64))
@@ -190,17 +155,13 @@ func (r *ResourceExporter) exportMetrics(ctx context.Context) error {
 	return err
 }
 
-func (r *ResourceExporter) ReadResource() ([]mikrotik.MikrotikItem, error) {
+func (r *ResourceExporter) ReadResource(ctx context.Context) ([]mikrotik.MikrotikItem, error) {
 	if len(r.schema.ResourceFilter) == 0 {
-		return mikrotik.Read(r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
+		return mikrotik.Read(r.schema.MikrotikResourcePath, mikrotik.Ctx(ctx), nil)
 	}
 	var filter []string
 	for k, v := range r.schema.ResourceFilter {
 		filter = append(filter, k+"="+v)
 	}
-	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(r.ctx), nil)
-}
-
-func (r *ResourceExporter) SetGlobalVars(m map[string]string) {
-	r.globalVars = m
+	return mikrotik.ReadFiltered(filter, r.schema.MikrotikResourcePath, mikrotik.Ctx(ctx), nil)
 }
