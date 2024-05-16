@@ -1,0 +1,18 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/firewall/filter
+
+global_labels:
+
+metrics:
+  - name: firewall_filter_total
+    help: Total amount of bytes matched by firewall rules
+    type: GaugeVec
+    operation: Set
+    field: bytes
+    field_type: int
+    labels:
+      chain: $chain
+      action: $action
+      comment: $comment
+      log: $log

@@ -1,0 +1,19 @@
+{{- if and .Values.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name:  {{ include "mikrotik-prom-exporter.fullname" . }}
+  labels:
+    {{- include "mikrotik-prom-exporter.labels" . | nindent 4 }}
+spec:
+  endpoints:
+    - interval: {{ .Values.podMonitor.scrapeInterval }}
+      targetPort: {{ .Values.service.port }}
+      path: /metrics
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "mikrotik-prom-exporter.selectorLabels" . | nindent 4 }}
+{{- end }}

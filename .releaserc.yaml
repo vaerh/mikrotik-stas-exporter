@@ -1,0 +1,24 @@
+branches:
+    - main
+preset: "conventionalcommits"
+plugins:
+    - - "@semantic-release/commit-analyzer"
+      - releaseRules:
+            - scope: no-release
+              release: false
+    - - "@semantic-release/release-notes-generator"
+      - writerOpts:
+            groupBy: "type"
+            commitGroupsSort: "title"
+            commitsSort: "header"
+            linkCompare: true
+            linkReferences: true
+    - "@semantic-release/changelog"
+    - "@semantic-release/exec"
+    - - "@semantic-release/git"
+      - assets:
+            - package.json
+            - package-lock.json
+            - CHANGELOG.md
+      - message: "chore(release): ${nextRelease.version}"
+    - "@semantic-release/github"

@@ -1,0 +1,15 @@
+namespace: mikrotik
+subsystem: capsman
+resource_path: /caps-man/remote-cap
+
+global_labels:
+  version: $version
+  base_mac: $base-mac
+  board: $board
+  identity: $identity
+
+metrics:
+  - name: remote_caps
+    help: CAPsMAN remote caps
+    type: GaugeVec
+    field_type: const

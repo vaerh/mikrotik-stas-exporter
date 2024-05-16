@@ -1,0 +1,11 @@
+namespace: mikrotik
+subsystem: system
+resource_path: /system/identity
+
+metrics:
+  - name: identity
+    help: System identity
+    type: GaugeVec
+    field_type: const
+    labels:
+      name: $name

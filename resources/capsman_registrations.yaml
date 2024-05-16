@@ -1,0 +1,13 @@
+namespace: mikrotik
+subsystem: capsman
+resource_path: /caps-man/registration-table
+
+global_labels:
+  interface: $interface
+
+metrics:
+  - name: registrations_count
+    help: Number of active registration per CAPsMAN interface
+    type: GaugeVec
+    operation: Inc
+    reset_gauge: true
