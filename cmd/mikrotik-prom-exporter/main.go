@@ -12,7 +12,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vaerh/mikrotik-prom-exporter/exporter"
+	"github.com/vaerh/mikrotik-prom-exporter/collector"
+
 	"github.com/vaerh/mikrotik-prom-exporter/mikrotik"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,7 +21,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
-	complexmetrics "github.com/vaerh/mikrotik-prom-exporter/complex_metrics"
+	"github.com/vaerh/mikrotik-prom-exporter/metrics"
 )
 
 var (
@@ -186,7 +187,7 @@ func main() {
 
 func export(cliCtx *cli.Context) error {
 	ctx := cliCtx.Context
-	schemas, err := exporter.LoadResSchemas(ctx, "resources")
+	schemas, err := metrics.LoadResSchemas(ctx, "resources")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("")
 	}
@@ -248,63 +249,24 @@ func export(cliCtx *cli.Context) error {
 	// sem := semaphore.NewWeighted(maxConcurrentWorkers)
 
 	metricsCollectionInterval, _ := time.ParseDuration(cliCtx.String("interval"))
+	contLabels := prometheus.Labels{
+		"routerboard_address": globalVars["HOSTURL"],
+		"routerboard_id":      globalVars["ROUTER_ID"],
+		"routerboard_alias":   globalVars["ALIAS"]}
 
-	for _, m := range complexmetrics.ComplexMetrics.Get() {
-		wg.Add(1)
+	allMetrics := make([]metrics.Metric, 0, len(schemas))
 
-		workerReg := prometheus.NewRegistry()
-		globalReg.MustRegister(workerReg)
+	asyncCollection := collector.NewAsyncCollector(
+		collector.WithCollectionInterval(metricsCollectionInterval),
+		collector.WithConstLabels(contLabels),
+		collector.WithGlobalRegistry(globalReg),
+		collector.WithGlobalVars(globalVars),
+	)
 
-		go func() {
-			defer globalReg.Unregister(workerReg)
+	allMetrics = append(allMetrics, metrics.ComplexMetrics.Get()...)
+	allMetrics = append(allMetrics, metrics.MustGetAllResourceMetrics(ctx)...)
 
-			m.Register(ctx, prometheus.Labels{
-				"routerboard_address": globalVars["HOSTURL"],
-				"routerboard_id":      globalVars["ROUTER_ID"],
-				"routerboard_alias":   globalVars["ALIAS"]},
-				workerReg)
-			m.SetCollectInterval(metricsCollectionInterval)
-
-			if err := m.StartCollecting(ctx); err != nil {
-				logger.Err(err).Msg("exporting metrics")
-			}
-
-			wg.Done()
-		}()
-	}
-
-	for _, s := range schemas {
-		wg.Add(1)
-
-		workerReg := prometheus.NewRegistry()
-		globalReg.MustRegister(workerReg)
-
-		go func() {
-			defer globalReg.Unregister(workerReg)
-
-			rExporter := exporter.NewResourceExporter(ctx, &s, prometheus.Labels{
-				"routerboard_address": globalVars["HOSTURL"],
-				"routerboard_id":      globalVars["ROUTER_ID"],
-				"routerboard_alias":   globalVars["ALIAS"]},
-				workerReg)
-			rExporter.SetGlobalVars(globalVars)
-			rExporter.SetCollectInterval(metricsCollectionInterval)
-
-			if err := rExporter.ExportMetrics(ctx); err != nil {
-				logger.Err(err).Msg("exporting metrics")
-			}
-
-			wg.Done()
-		}()
-	}
-
-	// for done := false; !done; {
-	// 	select {
-	// 	case <-signalChan:
-	// 		cancelFn()
-	// 		done = true
-	// 	}
-	// }
+	asyncCollection.CollectMetrics(ctx, allMetrics...)
 
 	<-signalChan
 	cancelFn()

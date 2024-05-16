@@ -1,4 +1,4 @@
-package complexmetrics
+package metrics
 
 import (
 	"context"
@@ -17,6 +17,7 @@ func init() {
 }
 
 type InterfaceStatus struct {
+	*anyMetric
 	path               string
 	duplex             *prometheus.GaugeVec
 	rate               *prometheus.GaugeVec
@@ -25,22 +26,14 @@ type InterfaceStatus struct {
 	collectionInterval time.Duration
 }
 
-func (iface *InterfaceStatus) GetCollectInterval() time.Duration {
-	return iface.collectionInterval
-}
-
-func (iface *InterfaceStatus) SetCollectInterval(t time.Duration) {
-	iface.collectionInterval = t
-}
-
 // Register implements Metric.
-func (iface *InterfaceStatus) Register(ctx context.Context, constLabels prometheus.Labels, reg prometheus.Registerer) {
+func (iface *InterfaceStatus) Register(reg prometheus.Registerer) {
 	iface.duplex = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "full_duplex",
 		Help:        "Full duplex data transmission",
-		ConstLabels: constLabels,
+		ConstLabels: iface.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(iface.duplex)
 
@@ -49,7 +42,7 @@ func (iface *InterfaceStatus) Register(ctx context.Context, constLabels promethe
 		Subsystem:   "interface",
 		Name:        "rate",
 		Help:        "Actual interface connection data rate",
-		ConstLabels: constLabels,
+		ConstLabels: iface.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(iface.rate)
 
@@ -58,7 +51,7 @@ func (iface *InterfaceStatus) Register(ctx context.Context, constLabels promethe
 		Subsystem:   "interface",
 		Name:        "status",
 		Help:        "Current interface link status",
-		ConstLabels: constLabels,
+		ConstLabels: iface.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(iface.status)
 
@@ -67,17 +60,12 @@ func (iface *InterfaceStatus) Register(ctx context.Context, constLabels promethe
 		Subsystem:   "interface",
 		Name:        "sfp_temperature",
 		Help:        "Current SFP temperature",
-		ConstLabels: constLabels,
+		ConstLabels: iface.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(iface.sfpTemp)
 }
 
-// Collect implements Metric.
-func (iface *InterfaceStatus) StartCollecting(ctx context.Context) error {
-	return startCollecting(ctx, iface, iface.collect)
-}
-
-func (is *InterfaceStatus) collect(ctx context.Context) error {
+func (is *InterfaceStatus) Collect(ctx context.Context) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("exporting resources")
 

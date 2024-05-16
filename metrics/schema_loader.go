@@ -1,4 +1,4 @@
-package exporter
+package metrics
 
 import (
 	"context"
@@ -44,4 +44,18 @@ func LoadResSchemas(ctx context.Context, basedir string) ([]ResourceSchema, erro
 	}
 
 	return res, nil
+}
+
+func MustGetAllResourceMetrics(ctx context.Context) []Metric {
+	schemas, err := LoadResSchemas(ctx, "")
+	if err != nil {
+		panic(err)
+	}
+
+	metrics := make([]Metric, len(schemas))
+	for _, schema := range schemas {
+		metrics = append(metrics, NewResourceExporter(&schema))
+	}
+
+	return metrics
 }

@@ -1,4 +1,4 @@
-package complexmetrics
+package metrics
 
 import (
 	"context"
@@ -17,6 +17,7 @@ func init() {
 }
 
 type PoEStatus struct {
+	*anyMetric
 	path               string
 	status             *prometheus.GaugeVec
 	outputCurrent      *prometheus.GaugeVec
@@ -25,22 +26,14 @@ type PoEStatus struct {
 	collectionInterval time.Duration
 }
 
-func (poe *PoEStatus) GetCollectInterval() time.Duration {
-	return poe.collectionInterval
-}
-
-func (poe *PoEStatus) SetCollectInterval(t time.Duration) {
-	poe.collectionInterval = t
-}
-
 // Register implements Metric.
-func (poe *PoEStatus) Register(ctx context.Context, constLabels prometheus.Labels, reg prometheus.Registerer) {
+func (poe *PoEStatus) Register(reg prometheus.Registerer) {
 	poe.status = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   "mikrotik",
 		Subsystem:   "interface",
 		Name:        "ethernet_poe_status",
 		Help:        "PoE status",
-		ConstLabels: constLabels,
+		ConstLabels: poe.globalLabels,
 	}, []string{"name", "poe_out", "poe_priority"})
 	reg.MustRegister(poe.status)
 
@@ -49,7 +42,7 @@ func (poe *PoEStatus) Register(ctx context.Context, constLabels prometheus.Label
 		Subsystem:   "interface",
 		Name:        "ethernet_poe_current",
 		Help:        "Current (mA)",
-		ConstLabels: constLabels,
+		ConstLabels: poe.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(poe.outputCurrent)
 
@@ -58,7 +51,7 @@ func (poe *PoEStatus) Register(ctx context.Context, constLabels prometheus.Label
 		Subsystem:   "interface",
 		Name:        "ethernet_poe_power",
 		Help:        "Power (W)",
-		ConstLabels: constLabels,
+		ConstLabels: poe.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(poe.outputPower)
 
@@ -67,17 +60,12 @@ func (poe *PoEStatus) Register(ctx context.Context, constLabels prometheus.Label
 		Subsystem:   "interface",
 		Name:        "ethernet_poe_voltage",
 		Help:        "Voltage (V)",
-		ConstLabels: constLabels,
+		ConstLabels: poe.globalLabels,
 	}, []string{"name"})
 	reg.MustRegister(poe.outputVoltage)
 }
 
-// Collect implements Metric.
-func (poe *PoEStatus) StartCollecting(ctx context.Context) error {
-	return startCollecting(ctx, poe, poe.collect)
-}
-
-func (poe *PoEStatus) collect(ctx context.Context) error {
+func (poe *PoEStatus) Collect(ctx context.Context) error {
 	logger := zerolog.Ctx(ctx)
 	logger.Debug().Msg("exporting resources")
 
