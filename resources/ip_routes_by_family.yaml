@@ -1,0 +1,55 @@
+namespace: mikrotik
+subsystem: ip
+resource_path: /ip/route
+
+global_labels:
+
+metrics:
+  - name: routes_connect_total
+    help: Number of connect routes in RIB
+    type: GaugeVec
+    field: connect
+    field_type: bool
+    operation: Add
+    reset_gauge: true
+    labels:
+      protocol: connect
+  - name: routes_dynamic_total
+    help: Number of dynamic routes in RIB
+    type: GaugeVec
+    field: dynamic
+    field_type: bool
+    operation: Add
+    reset_gauge: true
+    labels:
+      protocol: dynamic
+  - name: routes_static_total
+    help: Number of static routes in RIB
+    type: GaugeVec
+    field: static
+    field_type: bool
+    operation: Add
+    reset_gauge: true
+    labels:
+      protocol: static
+  - name: routes_bgp_total
+    help: Number of bgp routes in RIB
+    type: GaugeVec
+    field: bgp
+    field_type: bool
+    operation: Add
+    reset_gauge: true
+    labels:
+      protocol: bgp
+  - name: routes_ospf_total
+    help: Number of ospf routes in RIB
+    type: GaugeVec
+    field: ospf
+    field_type: bool
+    operation: Add
+    reset_gauge: true
+    labels:
+      protocol: ospf
+
+resource_filter:
+  active: yes

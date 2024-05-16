@@ -1,0 +1,58 @@
+namespace: mikrotik
+subsystem: system
+resource_path: /system/resource
+
+global_labels:
+  architecture_name: $architecture-name
+  board_name: $board-name
+  cpu: $cpu
+  version: $version
+
+metrics:
+  - name: uptime
+    help: Time interval since boot-up
+    type: GaugeVec
+    field: uptime
+    field_type: time
+
+  - name: free_memory
+    help: Unused amount of RAM
+    type: GaugeVec
+    field: free-memory
+    field_type: int
+
+  - name: total_memory
+    help: Amount of installed RAM
+    type: GaugeVec
+    field: total-memory
+    field_type: int
+
+  - name: free_hdd_space
+    help: Free space on hard drive or NAND
+    type: GaugeVec
+    field: free-hdd-space
+    field_type: int
+
+  - name: total_hdd_space
+    help: Size of the hard drive or NAND
+    type: GaugeVec
+    field: total-hdd-space
+    field_type: int
+
+  - name: cpu_load
+    help: Percentage of used CPU resources
+    type: GaugeVec
+    field: cpu-load
+    field_type: int
+
+  - name: cpu_count
+    help: Number of CPUs present on the system
+    type: GaugeVec
+    field: cpu-count
+    field_type: int
+
+  - name: cpu_frequency
+    help: Current CPU frequency
+    type: GaugeVec
+    field: cpu-frequency
+    field_type: int

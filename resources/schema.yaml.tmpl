@@ -1,0 +1,47 @@
+# The full name of the metric would look like:
+# [namespace]_[subsystem]_<metric_name>
+namespace: mikrotik
+subsystem: interface
+# Mikrotik resource path
+resource_path: /interface
+
+# Global labels that will be added to all metrics in this schema
+# Two types of tags are supported: static and dynamic.
+# Static labels are plain string data. 
+# Dynamic labels can be Mikrotik field names or global variables. 
+# The following global variables are currently supported:
+#   $HOSTURL  - connection string
+#   $USERNAME - connection username
+#   $ALIAS    - host alias
+#   $HOSTNAME - host IP address or DNS name
+global_labels:
+  routerboard_address: $HOSTNAME
+  routerboard_name: $ALIAS
+  name: $name
+
+metrics:
+  - name: rx_byte_total
+    help: Number of received bytes
+    # Type of metric in Prometheus terms: CounterVec or GaugeVec
+    type: GaugeVec
+    # Mikrotik filed name
+    field: rx-byte
+    # Type of Mikrotik filed
+    #   int
+    #   time
+    #   const - type at which all labels are filled and the current value is always equal to 1.0
+    field_type: int
+    # Local metric labels
+    labels: null
+  - name: tx_byte_total
+    help: Number of transmitted bytes
+    type: GaugeVec
+    # Metric operation:
+    #   CounterVec - Inc (default), Add
+    #   GaugeVec   - Set (default), Inc, Dec, Add, Sub, SetToCurrentTime
+    operation: Inc
+    # Delete all metrics in the vector each time statistics are collected
+    reset_gauge: true
+    field_type: const
+
+resource_filter: null
