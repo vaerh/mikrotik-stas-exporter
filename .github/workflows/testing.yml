@@ -42,9 +42,6 @@ jobs:
         with:
           version: v1.58
 
-      - name: Build
-        run: go build -v .
-
       - name: Preparing RouterOS for testing
         run: |
           go run .github/scripts/setup_routeros.go
